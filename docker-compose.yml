@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount current directory to /app with cached optimization
+      - .:/app:cached
+      # Exclude tmp directory (Air's build directory)
+      - /app/tmp
+    environment:
+      - PORT=8080
+      - GO_ENV=development
+    depends_on:
+      - db
+    networks:
+      - backend
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+      POSTGRES_PORT: 5455
+    ports:
+      - "5455:5455"
+    expose:
+      - 5455
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
+    command:
+      ["postgres", "-c", "listen_addresses=*", "-c", "max_connections=200", "-c", "port=5455"]
+
+volumes:
+  pgdata:
+
+networks:
+  backend:
+    driver: bridge

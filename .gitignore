@@ -1,0 +1,13 @@
+.DS_Store
+
+.vscode/
+.idea/
+# Ignore node_modules
+node_modules/
+# Ignore build output
+dist/
+# Ignore logs
+logs/
+# Ignore environment files
+.env
+.secrets.yaml

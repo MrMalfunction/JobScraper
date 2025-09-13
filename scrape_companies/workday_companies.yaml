@@ -1,0 +1,11 @@
+company:
+  nvidia:
+    name: "Nvidia"
+    baseURL: "https://nvidia.wd5.myworkdayjobs.com/wday/cxs/nvidia/NVIDIAExternalCareerSite"
+    listAllJobsRequestBody:
+      appliedFacets:
+        locationHierarchy1:
+          - "2fcb99c455831013ea52fb338f2932d8"
+      limit: 20
+      offset: 0
+      searchText: ""
