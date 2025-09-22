@@ -12,3 +12,10 @@ type AddWorkdayCompanyScrapeList struct {
 	BaseUrl    string          `json:"base_url"`
 	ApiReqBody json.RawMessage `json:"req_body"`
 }
+
+type JobSearchRequest struct {
+	Company string `query:"company" json:"company"`
+	Title   string `query:"title" json:"title"`
+	Limit   int    `query:"limit" json:"limit" validate:"omitempty,min=1,max=100" default:"10"`
+	Offset  int    `query:"offset" json:"offset" validate:"omitempty,min=0" default:"0"`
+}

@@ -70,7 +70,17 @@ func StartServer() {
 
 func attachPaths(e *echo.Echo) {
 	// Public routes
-
 	e.POST("/add_scrape_company/workday", SubmitWorkdayCompanyToScrape)
 	e.GET("/start_scrape", SubmitScrapeRequest)
+	
+	// API routes for frontend
+	api := e.Group("/api")
+	api.GET("/jobs/search", SearchJobs)
+	api.GET("/jobs/latest", GetLatestJobs)
+	api.GET("/jobs/today", GetTodaysJobs)
+	api.GET("/jobs/all", GetAllJobs)
+	api.GET("/companies", GetCompanies)
+	
+	// Serve static files from frontend/dist
+	e.Static("/", "frontend/dist")
 }
