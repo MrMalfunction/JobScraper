@@ -77,6 +77,8 @@ func attachPaths(e *echo.Echo) {
 	api := e.Group("/api")
 	api.GET("/jobs/search", SearchJobs)
 	api.GET("/jobs/latest", GetLatestJobs)
+	api.GET("/jobs/today", GetTodaysJobs)
+	api.GET("/jobs/all", GetAllJobs)
 	api.GET("/companies", GetCompanies)
 	
 	// Serve static files from frontend/dist

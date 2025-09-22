@@ -26,6 +26,14 @@ func GetLatestJobs(c echo.Context) error {
 	return service_jobs.GetLatestJobs(c)
 }
 
+func GetTodaysJobs(c echo.Context) error {
+	return service_jobs.GetTodaysJobs(c)
+}
+
+func GetAllJobs(c echo.Context) error {
+	return service_jobs.GetAllJobs(c)
+}
+
 func GetCompanies(c echo.Context) error {
 	return service_jobs.GetCompanies(c)
 }
