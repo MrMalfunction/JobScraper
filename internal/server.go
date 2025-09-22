@@ -65,14 +65,18 @@ func StartServer() {
 	})
 
 	// Start server
-	e.Logger.Fatal(e.Start(":8080"))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	e.Logger.Fatal(e.Start(":" + port))
 }
 
 func attachPaths(e *echo.Echo) {
 	// Public routes
 	e.POST("/add_scrape_company/workday", SubmitWorkdayCompanyToScrape)
 	e.GET("/start_scrape", SubmitScrapeRequest)
-	
+
 	// API routes for frontend
 	api := e.Group("/api")
 	api.GET("/jobs/search", SearchJobs)
@@ -80,7 +84,7 @@ func attachPaths(e *echo.Echo) {
 	api.GET("/jobs/today", GetTodaysJobs)
 	api.GET("/jobs/all", GetAllJobs)
 	api.GET("/companies", GetCompanies)
-	
+
 	// Serve static files from frontend/dist
 	e.Static("/", "frontend/dist")
 }
