@@ -13,7 +13,7 @@ services:
     #   # Exclude tmp directory (Air's build directory)
     #   - /app/tmp
     environment:
-      # - PORT=8085
+      - PORT=8085
       # - GO_ENV=development
       - database_dsn=postgres://user:password@db:5455/dbname?sslmode=disable
     depends_on:
@@ -32,8 +32,8 @@ services:
       POSTGRES_PORT: 5455
     ports:
       - "5455:5455"
-    expose:
-      - 5455
+    # expose:
+    #   - 5455
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
