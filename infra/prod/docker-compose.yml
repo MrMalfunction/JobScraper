@@ -6,14 +6,14 @@ services:
       context: ../../
       dockerfile: ./infra/prod/Dockerfile
     ports:
-      - "8080:8080"
+      - "8085:8085"
     # volumes:
     #   # Mount current directory to /app with cached optimization
     #   - .:/app:cached
     #   # Exclude tmp directory (Air's build directory)
     #   - /app/tmp
     environment:
-      - PORT=8080
+      # - PORT=8085
       # - GO_ENV=development
       - database_dsn=postgres://user:password@db:5455/dbname?sslmode=disable
     depends_on:

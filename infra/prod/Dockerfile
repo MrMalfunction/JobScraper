@@ -42,5 +42,5 @@ WORKDIR /app
 COPY --from=api-builder /app/main /app/
 COPY --from=api-builder /app/frontend/dist /app/frontend/dist
 
-EXPOSE 8080
+EXPOSE 8085
 CMD ["./main"]
