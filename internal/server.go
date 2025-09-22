@@ -66,6 +66,7 @@ func StartServer() {
 
 	// Start server
 	port := os.Getenv("PORT")
+	logger.Info("API Port", "port", port)
 	if port == "" {
 		port = "8080"
 	}
