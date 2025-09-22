@@ -3,57 +3,18 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
-	"job-scraper/scrapers"
-	"job-scraper/types"
+	"job-scraper/internal"
+	"job-scraper/internal/types"
 	"log/slog"
 	"os"
-	"sync"
-	"time"
 )
 
 func main() {
 	// Set max days to scrape - jobs posted within the last X days will be scraped
-	maxDaysToScrape := 1 // Scrape jobs posted within the last 1 day
-	scrapeDateLimit := time.Now().AddDate(0, 0, -maxDaysToScrape)
+	// maxDaysToScrape := 1 // Scrape jobs posted within the last 1 day
+	// scrapeDateLimit := time.Now().AddDate(0, 0, -maxDaysToScrape)
+	internal.StartServer()
 
-	// Create channels
-	jobsChannel := make(chan *types.JobDetails, 1000)    // Buffered channel for jobs from lister
-	resultsChannel := make(chan *types.JobDetails, 1000) // Buffered channel for completed jobs
-
-	var wg sync.WaitGroup
-
-	// Create job lister and scraper using factory functions
-	lister := scrapers.JobListerFactory(scrapers.ScrapeProviders(scrapers.Workday), "./scrape_companies/workday_companies.yaml")
-	scraper := scrapers.JobScraperFactory(scrapers.ScrapeProviders(scrapers.Workday))
-
-	// Start job listing - this is the actual function that should be a goroutine
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		lister.ListJobs(jobsChannel, scrapeDateLimit)
-	}()
-
-	// Start job detail scraping workers
-	numWorkers := 5
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		scraper.ScrapeJobDetails(jobsChannel, resultsChannel, numWorkers)
-	}()
-
-	// Start CSV writer
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := writeJobsToCSVChannel(resultsChannel, "jobs.csv"); err != nil {
-			slog.Error("Failed to write jobs to CSV", "error", err)
-		}
-	}()
-
-	// Wait for all goroutines to complete
-	wg.Wait()
-
-	slog.Info("Job scraping and CSV writing completed successfully")
 }
 
 func writeJobsToCSVChannel(jobsChannel <-chan *types.JobDetails, filename string) error {

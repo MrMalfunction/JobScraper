@@ -15,6 +15,7 @@ services:
     environment:
       - PORT=8080
       - GO_ENV=development
+      - database_dsn=postgres://user:password@db:5455/dbname?sslmode=disable
     depends_on:
       - db
     networks:
