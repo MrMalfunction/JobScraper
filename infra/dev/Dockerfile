@@ -24,7 +24,5 @@ COPY .air.toml ./
 # The source code will be mounted as a volume
 # So we don't copy it here
 
-EXPOSE 8080
-
 # Run Air for live reload
 CMD ["air", "-c", ".air.toml", "-d", "-build.cmd", "go build -buildvcs=false -o ./tmp/main ."]

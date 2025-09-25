@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   app:
     build:
@@ -7,20 +5,16 @@ services:
       dockerfile: ./infra/prod/Dockerfile
     ports:
       - "8085:8085"
-    # volumes:
-    #   # Mount current directory to /app with cached optimization
-    #   - .:/app:cached
-    #   # Exclude tmp directory (Air's build directory)
-    #   - /app/tmp
     environment:
       - PORT=8085
-      # - GO_ENV=development
+      - GO_ENV=production
       - database_dsn=postgres://user:password@db:5455/dbname?sslmode=disable
     depends_on:
       db:
         condition: service_healthy
     networks:
       - backend
+    restart: always
 
   db:
     image: postgres:16-alpine
