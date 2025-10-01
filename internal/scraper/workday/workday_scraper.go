@@ -83,6 +83,18 @@ func cleanUTF8String(s string) string {
 	return strings.ToValidUTF8(s, "")
 }
 
+func removeExtraNewlines(s string) string {
+	// Replace multiple consecutive newlines (with possible spaces/tabs between) with double newlines
+	re := regexp.MustCompile(`\n[\s]*\n[\s\n]*`)
+	cleaned := re.ReplaceAllString(s, "\n\n")
+
+	// Replace any remaining multiple newlines with double newlines
+	re2 := regexp.MustCompile(`\n{3,}`)
+	cleaned = re2.ReplaceAllString(cleaned, "\n\n")
+
+	return strings.TrimSpace(cleaned)
+}
+
 func listJobsAndStartDetailsScrape(company db.Companies, scrapeDateLimitTruncated time.Time, jobDetailScrapeChannel chan<- *db.Jobs) {
 	rClient := resty.New()
 	rClient.SetHeader("User-Agent", "")
@@ -187,11 +199,11 @@ func (ws WorkdayScraper) jobDetailsScraperWorker(jobChannel <-chan *db.Jobs) {
 		result := resp.Result().(*WorkdayJobDetailsResponse)
 
 		// Update job details
-		job.JobId = cleanUTF8String(result.JobPostingInfo.JobReqId)
-		job.JobLink = cleanUTF8String(result.JobPostingInfo.ExternalUrl)
-		job.JobDetails = cleanUTF8String(strings.TrimSpace(html2text.HTML2Text(result.JobPostingInfo.JobDescription)))
-		job.JobRole = cleanUTF8String(job.JobRole)
-		job.CompanyName = cleanUTF8String(job.CompanyName)
+		job.JobId = (result.JobPostingInfo.JobReqId)
+		job.JobLink = (result.JobPostingInfo.ExternalUrl)
+		job.JobDetails = removeExtraNewlines(cleanUTF8String(html2text.HTML2Text(result.JobPostingInfo.JobDescription)))
+		job.JobRole = (job.JobRole)
+		job.CompanyName = (job.CompanyName)
 		job.JobHash = getSHA256Hash(job.JobLink)
 
 		// Insert job into database only if it doesn't exist
