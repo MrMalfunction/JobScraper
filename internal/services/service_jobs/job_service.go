@@ -16,7 +16,7 @@ func SearchJobs(c echo.Context) error {
 	// Parse query parameters
 	company := strings.TrimSpace(c.QueryParam("company"))
 	title := strings.TrimSpace(c.QueryParam("title"))
-	
+
 	limitStr := c.QueryParam("limit")
 	if limitStr == "" {
 		limitStr = "10"
@@ -37,11 +37,11 @@ func SearchJobs(c echo.Context) error {
 
 	// Build query
 	query := db.DB.Model(&db.Jobs{})
-	
+
 	if company != "" {
 		query = query.Where("LOWER(company_name) ILIKE ?", "%"+strings.ToLower(company)+"%")
 	}
-	
+
 	if title != "" {
 		query = query.Where("LOWER(job_role) ILIKE ?", "%"+strings.ToLower(title)+"%")
 	}
@@ -147,7 +147,7 @@ func GetTodaysJobs(c echo.Context) error {
 	// Parse query parameters
 	company := strings.TrimSpace(c.QueryParam("company"))
 	title := strings.TrimSpace(c.QueryParam("title"))
-	
+
 	limitStr := c.QueryParam("limit")
 	if limitStr == "" {
 		limitStr = "20"
@@ -168,14 +168,14 @@ func GetTodaysJobs(c echo.Context) error {
 
 	// Get today's date in the format used by the database
 	today := time.Now().Format("2006-01-02")
-	
+
 	// Build query for today's jobs
 	query := db.DB.Model(&db.Jobs{}).Where("job_post_date = ?", today)
-	
+
 	if company != "" {
 		query = query.Where("LOWER(company_name) ILIKE ?", "%"+strings.ToLower(company)+"%")
 	}
-	
+
 	if title != "" {
 		query = query.Where("LOWER(job_role) ILIKE ?", "%"+strings.ToLower(title)+"%")
 	}
@@ -239,7 +239,7 @@ func GetAllJobs(c echo.Context) error {
 	// Parse query parameters
 	company := strings.TrimSpace(c.QueryParam("company"))
 	title := strings.TrimSpace(c.QueryParam("title"))
-	
+
 	limitStr := c.QueryParam("limit")
 	if limitStr == "" {
 		limitStr = "20"
@@ -260,11 +260,11 @@ func GetAllJobs(c echo.Context) error {
 
 	// Build query for all jobs
 	query := db.DB.Model(&db.Jobs{})
-	
+
 	if company != "" {
 		query = query.Where("LOWER(company_name) ILIKE ?", "%"+strings.ToLower(company)+"%")
 	}
-	
+
 	if title != "" {
 		query = query.Where("LOWER(job_role) ILIKE ?", "%"+strings.ToLower(title)+"%")
 	}
@@ -347,5 +347,31 @@ func GetCompanies(c echo.Context) error {
 	return c.JSON(http.StatusOK, api_models.StdResponse{
 		Message: "Companies retrieved successfully",
 		Data:    companyResponses,
+	})
+}
+
+// DeleteOldJobs deletes jobs older than 10 days
+func DeleteOldJobs(c echo.Context) error {
+	// Calculate the date 10 days ago
+	tenDaysAgo := time.Now().AddDate(0, 0, -10).Format("2006-01-02")
+
+	// Delete jobs older than 10 days
+	result := db.DB.Where("job_post_date < ?", tenDaysAgo).Delete(&db.Jobs{})
+
+	if result.Error != nil {
+		return c.JSON(http.StatusInternalServerError, api_models.StdResponse{
+			Message: "Failed to delete old jobs",
+			Data:    nil,
+		})
+	}
+
+	response := map[string]interface{}{
+		"deleted_count": result.RowsAffected,
+		"cutoff_date":   tenDaysAgo,
+	}
+
+	return c.JSON(http.StatusOK, api_models.StdResponse{
+		Message: "Old jobs deleted successfully",
+		Data:    response,
 	})
 }

@@ -85,6 +85,7 @@ func attachPaths(e *echo.Echo) {
 	api.GET("/jobs/today", GetTodaysJobs)
 	api.GET("/jobs/all", GetAllJobs)
 	api.GET("/companies", GetCompanies)
+	api.DELETE("/jobs/cleanup", DeleteOldJobs)
 
 	// Serve static files from frontend/dist
 	e.Static("/", "frontend/dist")

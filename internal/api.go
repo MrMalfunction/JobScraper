@@ -37,3 +37,7 @@ func GetAllJobs(c echo.Context) error {
 func GetCompanies(c echo.Context) error {
 	return service_jobs.GetCompanies(c)
 }
+
+func DeleteOldJobs(c echo.Context) error {
+	return service_jobs.DeleteOldJobs(c)
+}
