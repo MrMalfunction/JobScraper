@@ -57,7 +57,7 @@ func SearchJobs(c echo.Context) error {
 
 	// Get jobs with pagination
 	var jobs []db.Jobs
-	if err := query.Order("job_post_date DESC").
+	if err := query.Order("job_insert_time DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&jobs).Error; err != nil {
@@ -112,7 +112,7 @@ func GetLatestJobs(c echo.Context) error {
 	}
 
 	var jobs []db.Jobs
-	if err := db.DB.Order("job_post_date DESC").
+	if err := db.DB.Order("job_insert_time DESC").
 		Limit(limit).
 		Find(&jobs).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, api_models.StdResponse{
@@ -191,7 +191,7 @@ func GetTodaysJobs(c echo.Context) error {
 
 	// Get jobs with pagination
 	var jobs []db.Jobs
-	if err := query.Order("job_post_date DESC, job_hash DESC").
+	if err := query.Order("job_insert_time DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&jobs).Error; err != nil {
@@ -280,7 +280,7 @@ func GetAllJobs(c echo.Context) error {
 
 	// Get jobs with pagination
 	var jobs []db.Jobs
-	if err := query.Order("job_post_date DESC, job_hash DESC").
+	if err := query.Order("job_insert_time DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&jobs).Error; err != nil {

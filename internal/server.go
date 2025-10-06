@@ -5,6 +5,8 @@ import (
 	"job-scraper/internal/db"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"log/slog"
 
@@ -87,6 +89,31 @@ func attachPaths(e *echo.Echo) {
 	api.GET("/companies", GetCompanies)
 	api.DELETE("/jobs/cleanup", DeleteOldJobs)
 
-	// Serve static files from frontend/dist
-	e.Static("/", "frontend/dist")
+	// Redirect root to /ui
+	e.GET("/", func(c echo.Context) error {
+		return c.Redirect(http.StatusMovedPermanently, "/ui")
+	})
+
+	// Custom handler for /ui routes that serves static files or index.html for SPA routing
+	e.GET("/ui*", func(c echo.Context) error {
+		path := c.Request().URL.Path
+
+		// Remove /ui prefix to get the file path
+		filePath := strings.TrimPrefix(path, "/ui")
+		if filePath == "" || filePath == "/" {
+			filePath = "/index.html"
+		}
+
+		// Build full path to file
+		fullPath := filepath.Join("frontend/dist", filePath)
+
+		// Check if file exists
+		if _, err := os.Stat(fullPath); err == nil {
+			// File exists, serve it
+			return c.File(fullPath)
+		}
+
+		// File doesn't exist, serve index.html for SPA routing
+		return c.File("frontend/dist/index.html")
+	})
 }

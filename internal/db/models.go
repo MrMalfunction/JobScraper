@@ -1,5 +1,7 @@
 package db
 
+import "time"
+
 // Companies to be scraped.
 type Companies struct {
 	Name                 string `gorm:"type:string;primaryKey"`
@@ -11,13 +13,14 @@ type Companies struct {
 }
 
 type Jobs struct {
-	JobHash      string    `gorm:"type:string;primaryKey"`
-	JobId        string    `gorm:"type:string;not null"`
-	JobRole      string    `gorm:"type:string;not null"`
-	JobDetails   string    `gorm:"type:text;not null"`
-	JobPostDate  string    `gorm:"type:string;not null;index:idx_job_post"`
-	JobLink      string    `gorm:"type:string;not null"`
-	JobAISummary string    `gorm:"type:text"`
-	CompanyName  string    `gorm:"type:string;not null;index:idx_company_name"` // Foreign key to Companies.Name
-	Company      Companies `gorm:"foreignKey:CompanyName;references:Name;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	JobHash       string    `gorm:"type:string;primaryKey"`
+	JobId         string    `gorm:"type:string;not null"`
+	JobRole       string    `gorm:"type:string;not null"`
+	JobDetails    string    `gorm:"type:text;not null"`
+	JobPostDate   string    `gorm:"type:string;not null;index:idx_job_post"`
+	JobInsertTime time.Time `gorm:"type:timestamp;index:idx_insert_time;default:CURRENT_TIMESTAMP"`
+	JobLink       string    `gorm:"type:string;not null"`
+	JobAISummary  string    `gorm:"type:text"`
+	CompanyName   string    `gorm:"type:string;not null;index:idx_company_name"` // Foreign key to Companies.Name
+	Company       Companies `gorm:"foreignKey:CompanyName;references:Name;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }

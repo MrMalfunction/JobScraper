@@ -247,9 +247,9 @@ body {
 
 /* Main Content */
 .main-content {
-    max-width: 1200px;
+    max-width: 1800px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 2rem 1rem;
     min-height: calc(100vh - 80px);
 }
 
