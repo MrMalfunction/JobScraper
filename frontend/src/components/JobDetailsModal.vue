@@ -91,7 +91,11 @@ export default {
         },
 
         formatDate(dateString) {
-            return new Date(dateString).toLocaleDateString("en-US", {
+            // Extract date portion only (YYYY-MM-DD) to avoid timezone conversion
+            // Handles both "2025-10-24" and "2025-10-24T00:00:00Z" formats
+            const datePart = dateString.includes("T") ? dateString.split("T")[0] : dateString;
+            const [year, month, day] = datePart.split("-");
+            return new Date(year, month - 1, day).toLocaleDateString("en-US", {
                 year: "numeric",
                 month: "long",
                 day: "numeric",
