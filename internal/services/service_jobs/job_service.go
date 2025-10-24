@@ -71,14 +71,15 @@ func SearchJobs(c echo.Context) error {
 	jobResponses := make([]api_models.JobResponse, len(jobs))
 	for i, job := range jobs {
 		jobResponses[i] = api_models.JobResponse{
-			JobHash:      job.JobHash,
-			JobId:        job.JobId,
-			JobRole:      job.JobRole,
-			JobDetails:   job.JobDetails,
-			JobPostDate:  job.JobPostDate,
-			JobLink:      job.JobLink,
-			JobAISummary: job.JobAISummary,
-			CompanyName:  job.CompanyName,
+			JobHash:       job.JobHash,
+			JobId:         job.JobId,
+			JobRole:       job.JobRole,
+			JobDetails:    job.JobDetails,
+			JobPostDate:   job.JobPostDate,
+			JobInsertTime: job.JobInsertTime.Format(time.RFC3339),
+			JobLink:       job.JobLink,
+			JobAISummary:  job.JobAISummary,
+			CompanyName:   job.CompanyName,
 		}
 	}
 
@@ -125,14 +126,15 @@ func GetLatestJobs(c echo.Context) error {
 	jobResponses := make([]api_models.JobResponse, len(jobs))
 	for i, job := range jobs {
 		jobResponses[i] = api_models.JobResponse{
-			JobHash:      job.JobHash,
-			JobId:        job.JobId,
-			JobRole:      job.JobRole,
-			JobDetails:   job.JobDetails,
-			JobPostDate:  job.JobPostDate,
-			JobLink:      job.JobLink,
-			JobAISummary: job.JobAISummary,
-			CompanyName:  job.CompanyName,
+			JobHash:       job.JobHash,
+			JobId:         job.JobId,
+			JobRole:       job.JobRole,
+			JobDetails:    job.JobDetails,
+			JobPostDate:   job.JobPostDate,
+			JobInsertTime: job.JobInsertTime.Format(time.RFC3339),
+			JobLink:       job.JobLink,
+			JobAISummary:  job.JobAISummary,
+			CompanyName:   job.CompanyName,
 		}
 	}
 
@@ -166,11 +168,13 @@ func GetTodaysJobs(c echo.Context) error {
 		offset = 0
 	}
 
-	// Get today's date in local timezone in the format used by the database
-	today := time.Now().Local().Format("2006-01-02")
+	// Get today's date range (start and end of today in local timezone)
+	now := time.Now().Local()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	endOfDay := startOfDay.AddDate(0, 0, 1)
 
-	// Build query for today's jobs
-	query := db.DB.Model(&db.Jobs{}).Where("job_post_date = ?", today)
+	// Build query for jobs inserted today
+	query := db.DB.Model(&db.Jobs{}).Where("job_insert_time >= ? AND job_insert_time < ?", startOfDay, endOfDay)
 
 	if company != "" {
 		query = query.Where("LOWER(company_name) ILIKE ?", "%"+strings.ToLower(company)+"%")
@@ -205,14 +209,15 @@ func GetTodaysJobs(c echo.Context) error {
 	jobResponses := make([]api_models.JobResponse, len(jobs))
 	for i, job := range jobs {
 		jobResponses[i] = api_models.JobResponse{
-			JobHash:      job.JobHash,
-			JobId:        job.JobId,
-			JobRole:      job.JobRole,
-			JobDetails:   job.JobDetails,
-			JobPostDate:  job.JobPostDate,
-			JobLink:      job.JobLink,
-			JobAISummary: job.JobAISummary,
-			CompanyName:  job.CompanyName,
+			JobHash:       job.JobHash,
+			JobId:         job.JobId,
+			JobRole:       job.JobRole,
+			JobDetails:    job.JobDetails,
+			JobPostDate:   job.JobPostDate,
+			JobInsertTime: job.JobInsertTime.Format(time.RFC3339),
+			JobLink:       job.JobLink,
+			JobAISummary:  job.JobAISummary,
+			CompanyName:   job.CompanyName,
 		}
 	}
 
@@ -294,14 +299,15 @@ func GetAllJobs(c echo.Context) error {
 	jobResponses := make([]api_models.JobResponse, len(jobs))
 	for i, job := range jobs {
 		jobResponses[i] = api_models.JobResponse{
-			JobHash:      job.JobHash,
-			JobId:        job.JobId,
-			JobRole:      job.JobRole,
-			JobDetails:   job.JobDetails,
-			JobPostDate:  job.JobPostDate,
-			JobLink:      job.JobLink,
-			JobAISummary: job.JobAISummary,
-			CompanyName:  job.CompanyName,
+			JobHash:       job.JobHash,
+			JobId:         job.JobId,
+			JobRole:       job.JobRole,
+			JobDetails:    job.JobDetails,
+			JobPostDate:   job.JobPostDate,
+			JobInsertTime: job.JobInsertTime.Format(time.RFC3339),
+			JobLink:       job.JobLink,
+			JobAISummary:  job.JobAISummary,
+			CompanyName:   job.CompanyName,
 		}
 	}
 
@@ -350,13 +356,13 @@ func GetCompanies(c echo.Context) error {
 	})
 }
 
-// DeleteOldJobs deletes jobs older than 10 days
+// DeleteOldJobs deletes jobs older than 10 days based on when they were inserted into the database
 func DeleteOldJobs(c echo.Context) error {
-	// Calculate the date 10 days ago in local timezone
-	tenDaysAgo := time.Now().Local().AddDate(0, 0, -10).Format("2006-01-02")
+	// Calculate the timestamp 10 days ago
+	tenDaysAgo := time.Now().AddDate(0, 0, -10)
 
-	// Delete jobs older than 10 days
-	result := db.DB.Where("job_post_date < ?", tenDaysAgo).Delete(&db.Jobs{})
+	// Delete jobs inserted more than 10 days ago
+	result := db.DB.Where("job_insert_time < ?", tenDaysAgo).Delete(&db.Jobs{})
 
 	if result.Error != nil {
 		return c.JSON(http.StatusInternalServerError, api_models.StdResponse{
@@ -367,7 +373,7 @@ func DeleteOldJobs(c echo.Context) error {
 
 	response := map[string]interface{}{
 		"deleted_count": result.RowsAffected,
-		"cutoff_date":   tenDaysAgo,
+		"cutoff_date":   tenDaysAgo.Format(time.RFC3339),
 	}
 
 	return c.JSON(http.StatusOK, api_models.StdResponse{

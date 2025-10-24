@@ -2,7 +2,7 @@
     <div class="todays-jobs">
         <div class="page-header">
             <h1>Today's Jobs</h1>
-            <p>Jobs posted today across all companies</p>
+            <p>Jobs added to the database today from all companies</p>
         </div>
 
         <!-- Filters -->
@@ -41,7 +41,7 @@
 
         <!-- Results Summary -->
         <div v-if="!isLoading" class="results-summary">
-            <p>{{ jobsData.total }} jobs found for today {{ getCurrentDate() }}</p>
+            <p>{{ jobsData.total }} jobs added today {{ getCurrentDate() }}</p>
         </div>
 
         <!-- Jobs List -->
@@ -60,6 +60,12 @@
 
                     <div class="job-meta">
                         <span class="job-date">{{ formatDate(job.job_post_date) }}</span>
+                    </div>
+
+                    <div v-if="job.job_insert_time" class="job-insert-time">
+                        <span class="insert-time-badge"
+                            >Added {{ getRelativeTime(job.job_insert_time) }}</span
+                        >
                     </div>
 
                     <div class="job-preview">
@@ -103,8 +109,8 @@
         <!-- No Results -->
         <div v-if="!isLoading && jobsData.jobs.length === 0" class="no-results">
             <div class="no-results-icon">📭</div>
-            <h3>No jobs found for today</h3>
-            <p>There are no jobs posted today matching your criteria.</p>
+            <h3>No jobs added today</h3>
+            <p>There are no jobs added to the database today matching your criteria.</p>
         </div>
 
         <!-- Job Details Modal -->
@@ -220,6 +226,22 @@ export default {
 
         formatDate(dateString) {
             return new Date(dateString).toLocaleDateString();
+        },
+
+        getRelativeTime(dateTimeString) {
+            const date = new Date(dateTimeString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffSec = Math.floor(diffMs / 1000);
+            const diffMin = Math.floor(diffSec / 60);
+            const diffHr = Math.floor(diffMin / 60);
+            const diffDay = Math.floor(diffHr / 24);
+
+            if (diffSec < 60) return "just now";
+            if (diffMin < 60) return `${diffMin} minute${diffMin > 1 ? "s" : ""} ago`;
+            if (diffHr < 24) return `${diffHr} hour${diffHr > 1 ? "s" : ""} ago`;
+            if (diffDay < 7) return `${diffDay} day${diffDay > 1 ? "s" : ""} ago`;
+            return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
         },
     },
 };
@@ -343,7 +365,7 @@ export default {
 }
 
 .job-meta {
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .job-date {
@@ -352,6 +374,21 @@ export default {
     background: #f7fafc;
     padding: 0.25rem 0.5rem;
     border-radius: 6px;
+}
+
+.job-insert-time {
+    margin-bottom: 1rem;
+}
+
+.insert-time-badge {
+    display: inline-block;
+    color: #667eea;
+    font-size: 0.85rem;
+    background: #eef2ff;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    font-weight: 500;
+    border: 1px solid #dce4ff;
 }
 
 .job-preview {

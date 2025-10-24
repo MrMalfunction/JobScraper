@@ -76,6 +76,12 @@
                         <span v-if="job.job_id" class="job-id">ID: {{ job.job_id }}</span>
                     </div>
 
+                    <div v-if="job.job_insert_time" class="job-insert-time">
+                        <span class="insert-time-badge"
+                            >Added {{ getRelativeTime(job.job_insert_time) }}</span
+                        >
+                    </div>
+
                     <div class="job-preview">
                         {{ truncateText(job.job_details, 150) }}
                     </div>
@@ -308,6 +314,22 @@ export default {
                 day: "numeric",
             });
         },
+
+        getRelativeTime(dateTimeString) {
+            const date = new Date(dateTimeString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffSec = Math.floor(diffMs / 1000);
+            const diffMin = Math.floor(diffSec / 60);
+            const diffHr = Math.floor(diffMin / 60);
+            const diffDay = Math.floor(diffHr / 24);
+
+            if (diffSec < 60) return "just now";
+            if (diffMin < 60) return `${diffMin} minute${diffMin > 1 ? "s" : ""} ago`;
+            if (diffHr < 24) return `${diffHr} hour${diffHr > 1 ? "s" : ""} ago`;
+            if (diffDay < 7) return `${diffDay} day${diffDay > 1 ? "s" : ""} ago`;
+            return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        },
     },
 };
 </script>
@@ -433,7 +455,7 @@ export default {
 }
 
 .job-meta {
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
@@ -446,6 +468,21 @@ export default {
     background: #f7fafc;
     padding: 0.25rem 0.5rem;
     border-radius: 6px;
+}
+
+.job-insert-time {
+    margin-bottom: 1rem;
+}
+
+.insert-time-badge {
+    display: inline-block;
+    color: #667eea;
+    font-size: 0.85rem;
+    background: #eef2ff;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    font-weight: 500;
+    border: 1px solid #dce4ff;
 }
 
 .job-preview {
