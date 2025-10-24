@@ -70,12 +70,14 @@ func SearchJobs(c echo.Context) error {
 	// Convert to response format
 	jobResponses := make([]api_models.JobResponse, len(jobs))
 	for i, job := range jobs {
+		// Parse job_post_date and format with timezone to avoid browser timezone issues
+		postDate, _ := time.Parse("2006-01-02", job.JobPostDate)
 		jobResponses[i] = api_models.JobResponse{
 			JobHash:       job.JobHash,
 			JobId:         job.JobId,
 			JobRole:       job.JobRole,
 			JobDetails:    job.JobDetails,
-			JobPostDate:   job.JobPostDate,
+			JobPostDate:   postDate.Format("2006-01-02T00:00:00Z07:00"),
 			JobInsertTime: job.JobInsertTime.Format(time.RFC3339),
 			JobLink:       job.JobLink,
 			JobAISummary:  job.JobAISummary,
@@ -125,12 +127,14 @@ func GetLatestJobs(c echo.Context) error {
 	// Convert to response format
 	jobResponses := make([]api_models.JobResponse, len(jobs))
 	for i, job := range jobs {
+		// Parse job_post_date and format with timezone to avoid browser timezone issues
+		postDate, _ := time.Parse("2006-01-02", job.JobPostDate)
 		jobResponses[i] = api_models.JobResponse{
 			JobHash:       job.JobHash,
 			JobId:         job.JobId,
 			JobRole:       job.JobRole,
 			JobDetails:    job.JobDetails,
-			JobPostDate:   job.JobPostDate,
+			JobPostDate:   postDate.Format("2006-01-02T00:00:00Z07:00"),
 			JobInsertTime: job.JobInsertTime.Format(time.RFC3339),
 			JobLink:       job.JobLink,
 			JobAISummary:  job.JobAISummary,
@@ -208,12 +212,14 @@ func GetTodaysJobs(c echo.Context) error {
 	// Convert to response format
 	jobResponses := make([]api_models.JobResponse, len(jobs))
 	for i, job := range jobs {
+		// Parse job_post_date and format with timezone to avoid browser timezone issues
+		postDate, _ := time.Parse("2006-01-02", job.JobPostDate)
 		jobResponses[i] = api_models.JobResponse{
 			JobHash:       job.JobHash,
 			JobId:         job.JobId,
 			JobRole:       job.JobRole,
 			JobDetails:    job.JobDetails,
-			JobPostDate:   job.JobPostDate,
+			JobPostDate:   postDate.Format("2006-01-02T00:00:00Z07:00"),
 			JobInsertTime: job.JobInsertTime.Format(time.RFC3339),
 			JobLink:       job.JobLink,
 			JobAISummary:  job.JobAISummary,
@@ -298,12 +304,14 @@ func GetAllJobs(c echo.Context) error {
 	// Convert to response format
 	jobResponses := make([]api_models.JobResponse, len(jobs))
 	for i, job := range jobs {
+		// Parse job_post_date and format with timezone to avoid browser timezone issues
+		postDate, _ := time.Parse("2006-01-02", job.JobPostDate)
 		jobResponses[i] = api_models.JobResponse{
 			JobHash:       job.JobHash,
 			JobId:         job.JobId,
 			JobRole:       job.JobRole,
 			JobDetails:    job.JobDetails,
-			JobPostDate:   job.JobPostDate,
+			JobPostDate:   postDate.Format("2006-01-02T00:00:00Z07:00"),
 			JobInsertTime: job.JobInsertTime.Format(time.RFC3339),
 			JobLink:       job.JobLink,
 			JobAISummary:  job.JobAISummary,
