@@ -20,7 +20,7 @@ func StartJobScrapping(c echo.Context) error {
 	var companies []db.Companies
 	db.DB.Where(&db.Companies{ToScrape: true}).Order("career_site_type").Find(&companies)
 
-	scraper_lister_channels := make(map[types.ScrapebleWebsites]chan db.Companies)
+	scraper_lister_channels := make(map[types.ScrapableWebsites]chan db.Companies)
 
 	for _, company := range companies {
 		switch company.CareerSiteType {

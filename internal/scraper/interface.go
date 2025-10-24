@@ -11,7 +11,7 @@ type scraper interface {
 	StartScraping(companiesToScrape <-chan db.Companies, scrapeDayLimit time.Time)
 }
 
-func JobScraperFactory(provider types.ScrapebleWebsites) scraper {
+func JobScraperFactory(provider types.ScrapableWebsites) scraper {
 	switch provider {
 	case types.Workday:
 		return workday.WorkdayScraper{}

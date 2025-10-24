@@ -11,6 +11,7 @@ services:
       # Exclude tmp directory (Air's build directory)
       - /app/tmp
     environment:
+      - TZ=America/New_York
       - PORT=8085
       - GO_ENV=development
       - database_dsn=postgres://user:password@db:5455/dbname?sslmode=disable
@@ -24,6 +25,7 @@ services:
     image: postgres:16-alpine
     restart: always
     environment:
+      TZ: America/New_York
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: dbname

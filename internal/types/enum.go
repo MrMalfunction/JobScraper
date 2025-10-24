@@ -1,13 +1,13 @@
 package types
 
-type ScrapebleWebsites string
+type ScrapableWebsites string
 
 const (
-	Workday ScrapebleWebsites = "workday"
+	Workday ScrapableWebsites = "workday"
 )
 
-func AllScrapableWebsites() []ScrapebleWebsites {
-	return []ScrapebleWebsites{
+func AllScrapableWebsites() []ScrapableWebsites {
+	return []ScrapableWebsites{
 		Workday,
 	}
 }
