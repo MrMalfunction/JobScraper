@@ -149,15 +149,14 @@ func listJobsAndStartDetailsScrape(company db.Companies, scrapeDateLimitTruncate
 			if jobPostDateTruncated.After(scrapeDateLimitTruncated) || jobPostDateTruncated.Equal(scrapeDateLimitTruncated) {
 				allJobsTooOld = false
 				job := &db.Jobs{
-					JobHash:       "",
-					JobId:         "",
-					JobRole:       posting.Title,
-					JobDetails:    "",
-					JobPostDate:   jobPostDate.Format("2006-01-02"),
-					JobLink:       company.BaseUrl + posting.ExternalPath,
-					JobInsertTime: time.Now(),
-					JobAISummary:  "",
-					CompanyName:   company.Name,
+					JobHash:      "",
+					JobId:        "",
+					JobRole:      posting.Title,
+					JobDetails:   "",
+					JobPostDate:  jobPostDate.Format("2006-01-02"),
+					JobLink:      company.BaseUrl + posting.ExternalPath,
+					JobAISummary: "",
+					CompanyName:  company.Name,
 				}
 
 				jobDetailScrapeChannel <- job

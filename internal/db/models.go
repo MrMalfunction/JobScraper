@@ -18,7 +18,7 @@ type Jobs struct {
 	JobRole       string    `gorm:"type:string;not null"`
 	JobDetails    string    `gorm:"type:text;not null"`
 	JobPostDate   string    `gorm:"type:string;not null;index:idx_job_post"`
-	JobInsertTime time.Time `gorm:"type:timestamp;index:idx_insert_time;default:CURRENT_TIMESTAMP"`
+	JobInsertTime time.Time `gorm:"type:timestamptz;index:idx_insert_time;default:CURRENT_TIMESTAMP"`
 	JobLink       string    `gorm:"type:string;not null"`
 	JobAISummary  string    `gorm:"type:text"`
 	CompanyName   string    `gorm:"type:string;not null;index:idx_company_name"` // Foreign key to Companies.Name
