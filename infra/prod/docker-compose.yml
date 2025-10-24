@@ -5,11 +5,7 @@ services:
       dockerfile: infra/prod/Dockerfile
     ports:
       - "8085:8085"
-    volumes:
-      # Mount project root directory to /app with cached optimization
-      - ../../:/app:cached
-      # Exclude tmp directory (Air's build directory)
-      - /app/tmp
+
     environment:
       - TZ=America/New_York
       - PORT=8085
