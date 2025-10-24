@@ -2,7 +2,7 @@ services:
   app:
     build:
       context: ../../
-      dockerfile: infra/dev/Dockerfile
+      dockerfile: infra/prod/Dockerfile
     ports:
       - "8085:8085"
     volumes:
