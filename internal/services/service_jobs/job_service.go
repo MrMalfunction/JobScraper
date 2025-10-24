@@ -166,8 +166,8 @@ func GetTodaysJobs(c echo.Context) error {
 		offset = 0
 	}
 
-	// Get today's date in the format used by the database
-	today := time.Now().Format("2006-01-02")
+	// Get today's date in local timezone in the format used by the database
+	today := time.Now().Local().Format("2006-01-02")
 
 	// Build query for today's jobs
 	query := db.DB.Model(&db.Jobs{}).Where("job_post_date = ?", today)
@@ -352,8 +352,8 @@ func GetCompanies(c echo.Context) error {
 
 // DeleteOldJobs deletes jobs older than 10 days
 func DeleteOldJobs(c echo.Context) error {
-	// Calculate the date 10 days ago
-	tenDaysAgo := time.Now().AddDate(0, 0, -10).Format("2006-01-02")
+	// Calculate the date 10 days ago in local timezone
+	tenDaysAgo := time.Now().Local().AddDate(0, 0, -10).Format("2006-01-02")
 
 	// Delete jobs older than 10 days
 	result := db.DB.Where("job_post_date < ?", tenDaysAgo).Delete(&db.Jobs{})
