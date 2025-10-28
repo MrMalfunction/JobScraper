@@ -3,9 +3,9 @@ services:
     build:
       context: ../../
       dockerfile: infra/prod/Dockerfile
+    restart: always
     ports:
       - "8085:8085"
-
     environment:
       - TZ=America/New_York
       - PORT=8085
