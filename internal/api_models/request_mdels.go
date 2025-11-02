@@ -13,6 +13,11 @@ type AddWorkdayCompanyScrapeList struct {
 	ApiReqBody json.RawMessage `json:"req_body"`
 }
 
+type AddGreenhouseCompanyScrapeList struct {
+	Name    string `json:"name"`
+	BaseUrl string `json:"base_url"`
+}
+
 type JobSearchRequest struct {
 	Company string `query:"company" json:"company"`
 	Title   string `query:"title" json:"title"`

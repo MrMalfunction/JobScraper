@@ -38,6 +38,14 @@
                     <p>Workday Sites</p>
                 </div>
             </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">🌿</div>
+                <div class="stat-content">
+                    <h3>{{ greenhouseCompanies }}</h3>
+                    <p>Greenhouse Sites</p>
+                </div>
+            </div>
         </div>
 
         <!-- Companies List -->
@@ -46,7 +54,7 @@
                 <h2>Registered Companies</h2>
                 <div class="header-actions">
                     <button @click="showAddModal = true" class="btn btn-primary">
-                        ➕ Add Workday Company
+                        ➕ Add Company
                     </button>
                     <button
                         @click="loadCompanies"
@@ -110,7 +118,7 @@
             <div v-else-if="!isLoadingCompanies" class="no-companies">
                 <div class="no-companies-icon">🏢</div>
                 <h3>No companies registered</h3>
-                <p>Click "Add Workday Company" to start scraping jobs.</p>
+                <p>Click "Add Company" to start scraping jobs.</p>
             </div>
 
             <div v-if="isLoadingCompanies" class="loading-container">
@@ -123,11 +131,27 @@
         <div v-if="showAddModal" class="modal-overlay" @click.self="closeModal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Add Workday Company</h2>
+                    <h2>Add Company</h2>
                     <button @click="closeModal" class="close-btn">✕</button>
                 </div>
 
                 <form @submit.prevent="addCompany" class="company-form">
+                    <div class="form-group">
+                        <label for="companyType">Company Type:</label>
+                        <select
+                            id="companyType"
+                            v-model="companyForm.type"
+                            @change="onTypeChange"
+                            required
+                        >
+                            <option value="workday">Workday</option>
+                            <option value="greenhouse">Greenhouse</option>
+                        </select>
+                        <small class="form-help">
+                            Select the career site platform used by the company
+                        </small>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label for="companyName">Company Name:</label>
@@ -146,20 +170,29 @@
                                 id="baseUrl"
                                 v-model="companyForm.baseUrl"
                                 type="url"
-                                placeholder="https://company.workdayapp.com"
+                                :placeholder="
+                                    companyForm.type === 'workday'
+                                        ? 'https://company.workdayapp.com'
+                                        : 'https://boards-api.greenhouse.io/v1/boards/companyname'
+                                "
                                 required
                             />
+                            <small v-if="companyForm.type === 'greenhouse'" class="form-help">
+                                Example:
+                                https://boards-api.greenhouse.io/v1/boards/sonyinteractiveentertainmentglobal
+                            </small>
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <!-- Workday specific fields -->
+                    <div v-if="companyForm.type === 'workday'" class="form-group">
                         <label for="reqBody">Request Body (JSON):</label>
                         <textarea
                             id="reqBody"
                             v-model="companyForm.reqBody"
                             rows="6"
                             placeholder='{"searchText":"","locations":[],"jobFamilies":[],"postedWithin":"","limit":20,"offset":0}'
-                            required
+                            :required="companyForm.type === 'workday'"
                         ></textarea>
                         <small class="form-help">
                             Configure the JSON payload for the Workday API. Adjust parameters like
@@ -198,6 +231,7 @@ export default {
         return {
             companies: [],
             companyForm: {
+                type: "workday",
                 name: "",
                 baseUrl: "",
                 reqBody:
@@ -223,6 +257,10 @@ export default {
 
         workdayCompanies() {
             return this.companies.filter((c) => c.career_site_type === "workday").length;
+        },
+
+        greenhouseCompanies() {
+            return this.companies.filter((c) => c.career_site_type === "greenhouse").length;
         },
     },
 
@@ -250,14 +288,23 @@ export default {
             this.addCompanyMessage = "";
 
             try {
-                // Validate JSON
-                const reqBodyObj = JSON.parse(this.companyForm.reqBody);
+                let response;
 
-                const response = await axios.post("/add_scrape_company/workday", {
-                    name: this.companyForm.name,
-                    base_url: this.companyForm.baseUrl,
-                    req_body: reqBodyObj,
-                });
+                if (this.companyForm.type === "workday") {
+                    // Validate JSON for Workday
+                    const reqBodyObj = JSON.parse(this.companyForm.reqBody);
+
+                    response = await axios.post("/add_scrape_company/workday", {
+                        name: this.companyForm.name,
+                        base_url: this.companyForm.baseUrl,
+                        req_body: reqBodyObj,
+                    });
+                } else if (this.companyForm.type === "greenhouse") {
+                    response = await axios.post("/add_scrape_company/greenhouse", {
+                        name: this.companyForm.name,
+                        base_url: this.companyForm.baseUrl,
+                    });
+                }
 
                 this.addCompanyMessage = response.data.message;
                 this.addCompanyMessageType = "success";
@@ -279,10 +326,18 @@ export default {
         },
 
         resetForm() {
+            this.companyForm.type = "workday";
             this.companyForm.name = "";
             this.companyForm.baseUrl = "";
             this.companyForm.reqBody =
                 '{"searchText":"","locations":[],"jobFamilies":[],"postedWithin":"","limit":20,"offset":0}';
+            this.addCompanyMessage = "";
+        },
+
+        onTypeChange() {
+            // Clear form fields when type changes
+            this.companyForm.name = "";
+            this.companyForm.baseUrl = "";
             this.addCompanyMessage = "";
         },
 
@@ -368,7 +423,7 @@ export default {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1.5rem;
-    margin-bottom: 3rem;
+    margin-bottom: 2rem;
 }
 
 .stat-card {

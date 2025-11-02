@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"job-scraper/internal/db"
+	"job-scraper/internal/scraper/greenhouse"
 	"job-scraper/internal/scraper/workday"
 	"job-scraper/internal/types"
 	"time"
@@ -15,6 +16,8 @@ func JobScraperFactory(provider types.ScrapableWebsites) scraper {
 	switch provider {
 	case types.Workday:
 		return workday.WorkdayScraper{}
+	case types.Greenhouse:
+		return greenhouse.GreenhouseScraper{}
 	default:
 		return nil
 	}

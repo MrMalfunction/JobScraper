@@ -78,6 +78,7 @@ func StartServer() {
 func attachPaths(e *echo.Echo) {
 	// Public routes
 	e.POST("/add_scrape_company/workday", SubmitWorkdayCompanyToScrape)
+	e.POST("/add_scrape_company/greenhouse", SubmitGreenhouseCompanyToScrape)
 	e.GET("/start_scrape", SubmitScrapeRequest)
 
 	// API routes for frontend

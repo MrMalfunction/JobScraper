@@ -31,6 +31,13 @@ func StartJobScrapping(c echo.Context) error {
 				go workdayScraper.StartScraping(scraper_lister_channels[types.Workday], time.Now().Truncate(24*time.Hour))
 			}
 			scraper_lister_channels[types.Workday] <- company
+		case string(types.Greenhouse):
+			if scraper_lister_channels[types.Greenhouse] == nil {
+				scraper_lister_channels[types.Greenhouse] = make(chan db.Companies, len(companies))
+				greenhouseScraper := scraper.JobScraperFactory(types.Greenhouse)
+				go greenhouseScraper.StartScraping(scraper_lister_channels[types.Greenhouse], time.Now().Truncate(24*time.Hour))
+			}
+			scraper_lister_channels[types.Greenhouse] <- company
 		default:
 			slog.Debug("This Scraper Logic doesn't exist yet")
 		}
@@ -90,6 +97,41 @@ func AddWorkdayCompanyToScrapeList(c echo.Context) error {
 	slog.Info("Inserted Workday Company to DB.")
 	return c.JSON(http.StatusAccepted, api_models.StdResponse{
 		Message: fmt.Sprintf("Added %s company to scrape list", workdayCompData.Name),
+		Data:    nil,
+	})
+}
+
+func AddGreenhouseCompanyToScrapeList(c echo.Context) error {
+	var greenhouseCompData api_models.AddGreenhouseCompanyScrapeList
+
+	if err := c.Bind(&greenhouseCompData); err != nil {
+		return c.JSON(http.StatusBadRequest, api_models.StdResponse{
+			Message: "Invalid request body",
+			Data:    nil,
+		})
+	}
+
+	companyDBData := db.Companies{
+		Name:           greenhouseCompData.Name,
+		BaseUrl:        greenhouseCompData.BaseUrl,
+		CareerSiteType: string(types.Greenhouse),
+		ToScrape:       true,
+	}
+
+	if err := db.DB.Create(&companyDBData).Error; err != nil {
+		slog.Error("Failed to insert company into database",
+			"error", err,
+			"company", companyDBData,
+		)
+		return c.JSON(http.StatusInternalServerError, api_models.StdResponse{
+			Message: "Failed to insert company.",
+			Data:    nil,
+		})
+	}
+
+	slog.Info("Inserted Greenhouse Company to DB.")
+	return c.JSON(http.StatusAccepted, api_models.StdResponse{
+		Message: fmt.Sprintf("Added %s company to scrape list", greenhouseCompData.Name),
 		Data:    nil,
 	})
 }

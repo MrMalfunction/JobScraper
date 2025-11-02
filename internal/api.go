@@ -17,6 +17,10 @@ func SubmitWorkdayCompanyToScrape(c echo.Context) error {
 	return service_scraper.AddWorkdayCompanyToScrapeList(c)
 }
 
+func SubmitGreenhouseCompanyToScrape(c echo.Context) error {
+	return service_scraper.AddGreenhouseCompanyToScrapeList(c)
+}
+
 // Job search endpoints
 func SearchJobs(c echo.Context) error {
 	return service_jobs.SearchJobs(c)

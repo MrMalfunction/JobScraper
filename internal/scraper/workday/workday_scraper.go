@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"unicode/utf8"
@@ -240,10 +241,16 @@ func (ws WorkdayScraper) StartScraping(companiesToScrape <-chan db.Companies, sc
 		slog.Info("[Workday_Scraper] Job details scraper started")
 	}
 
+	// Use WaitGroup to track company listing workers
+	var wg sync.WaitGroup
 	for company := range companiesToScrape {
-		listJobsAndStartDetailsScrape(company, scrapeDateLimitTruncated, jobDetailScrapeChannel)
+		wg.Go(func() {
+			listJobsAndStartDetailsScrape(company, scrapeDateLimitTruncated, jobDetailScrapeChannel)
+		})
 	}
 
+	// Wait for all companies to finish listing jobs, then close the channel
+	wg.Wait()
 	close(jobDetailScrapeChannel)
 	slog.Info("[Workday_Scraper] Workday Companies Job list complete.")
 
