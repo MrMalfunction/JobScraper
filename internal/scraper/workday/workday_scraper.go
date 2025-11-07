@@ -1,19 +1,16 @@
 package workday
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"job-scraper/internal/db"
+	"job-scraper/internal/scraper/common"
 	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"unicode/utf8"
 
 	"github.com/k3a/html2text"
 	"resty.dev/v3"
@@ -69,32 +66,6 @@ func parsePostedDate(postedOn string) time.Time {
 }
 
 type WorkdayScraper struct{}
-
-func getSHA256Hash(strToHash string) string {
-	h := sha256.New()
-	h.Write([]byte(strToHash))
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-func cleanUTF8String(s string) string {
-	if utf8.ValidString(s) {
-		return s
-	}
-	// Remove invalid UTF-8 sequences
-	return strings.ToValidUTF8(s, "")
-}
-
-func removeExtraNewlines(s string) string {
-	// Replace multiple consecutive newlines (with possible spaces/tabs between) with double newlines
-	re := regexp.MustCompile(`\n[\s]*\n[\s\n]*`)
-	cleaned := re.ReplaceAllString(s, "\n\n")
-
-	// Replace any remaining multiple newlines with double newlines
-	re2 := regexp.MustCompile(`\n{3,}`)
-	cleaned = re2.ReplaceAllString(cleaned, "\n\n")
-
-	return strings.TrimSpace(cleaned)
-}
 
 func listJobsAndStartDetailsScrape(company db.Companies, scrapeDateLimitTruncated time.Time, jobDetailScrapeChannel chan<- *db.Jobs) {
 	rClient := resty.New()
@@ -202,27 +173,13 @@ func (ws WorkdayScraper) jobDetailsScraperWorker(jobChannel <-chan *db.Jobs) {
 		// Update job details
 		job.JobId = (result.JobPostingInfo.JobReqId)
 		job.JobLink = (result.JobPostingInfo.ExternalUrl)
-		job.JobDetails = removeExtraNewlines(cleanUTF8String(html2text.HTML2Text(result.JobPostingInfo.JobDescription)))
+		job.JobDetails = common.RemoveExtraNewlines(common.CleanUTF8String(html2text.HTML2Text(result.JobPostingInfo.JobDescription)))
 		job.JobRole = (job.JobRole)
 		job.CompanyName = (job.CompanyName)
-		job.JobHash = getSHA256Hash(job.JobLink)
+		job.JobHash = common.GetSHA256Hash(job.JobLink)
 
-		// Insert job into database only if it doesn't exist
-		dbResult := db.DB.FirstOrCreate(job, db.Jobs{JobHash: job.JobHash})
-		if dbResult.Error != nil {
-			slog.Error("[Workday_Scraper_Worker] Failed to insert job into database",
-				"jobLink", job.JobLink,
-				"jobId", job.JobId,
-				"error", dbResult.Error)
-		} else if dbResult.RowsAffected > 0 {
-			slog.Info("[Workday_Scraper_Worker] Job inserted into database",
-				"jobLink", job.JobLink,
-				"jobId", job.JobId)
-		} else {
-			slog.Info("[Workday_Scraper_Worker] Job already exists, skipping insert",
-				"jobLink", job.JobLink,
-				"jobId", job.JobId)
-		}
+		// Insert job into database
+		common.InsertJobToDB(job, "Workday_Scraper")
 
 		slog.Info("[Workday_Scraper_Worker] Job Scraped", "JobLink", job.JobLink)
 	}

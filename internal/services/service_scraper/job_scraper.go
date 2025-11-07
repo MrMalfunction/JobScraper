@@ -7,6 +7,7 @@ import (
 	"job-scraper/internal/api_models"
 	"job-scraper/internal/db"
 	"job-scraper/internal/scraper"
+	"job-scraper/internal/scraper/oraclecloud"
 	"job-scraper/internal/types"
 	"log/slog"
 	"net/http"
@@ -38,6 +39,13 @@ func StartJobScrapping(c echo.Context) error {
 				go greenhouseScraper.StartScraping(scraper_lister_channels[types.Greenhouse], time.Now().Truncate(24*time.Hour))
 			}
 			scraper_lister_channels[types.Greenhouse] <- company
+		case string(types.OracleCloud):
+			if scraper_lister_channels[types.OracleCloud] == nil {
+				scraper_lister_channels[types.OracleCloud] = make(chan db.Companies, len(companies))
+				oraclecloudScraper := scraper.JobScraperFactory(types.OracleCloud)
+				go oraclecloudScraper.StartScraping(scraper_lister_channels[types.OracleCloud], time.Now().Truncate(24*time.Hour))
+			}
+			scraper_lister_channels[types.OracleCloud] <- company
 		default:
 			slog.Debug("This Scraper Logic doesn't exist yet")
 		}
@@ -132,6 +140,54 @@ func AddGreenhouseCompanyToScrapeList(c echo.Context) error {
 	slog.Info("Inserted Greenhouse Company to DB.")
 	return c.JSON(http.StatusAccepted, api_models.StdResponse{
 		Message: fmt.Sprintf("Added %s company to scrape list", greenhouseCompData.Name),
+		Data:    nil,
+	})
+}
+
+func AddOracleCloudCompanyToScrapeList(c echo.Context) error {
+	var oracleCloudCompData api_models.AddOracleCloudCompanyScrapeList
+
+	if err := c.Bind(&oracleCloudCompData); err != nil {
+		return c.JSON(http.StatusBadRequest, api_models.StdResponse{
+			Message: "Invalid request body",
+			Data:    nil,
+		})
+	}
+
+	// Transform browser URL to API URL
+	apiURL, err := oraclecloud.TransformBrowserURLToAPIURL(oracleCloudCompData.BrowserUrl)
+	if err != nil {
+		slog.Error("Failed to transform Oracle Cloud URL",
+			"error", err,
+			"browserUrl", oracleCloudCompData.BrowserUrl,
+		)
+		return c.JSON(http.StatusBadRequest, api_models.StdResponse{
+			Message: fmt.Sprintf("Failed to transform URL: %s", err.Error()),
+			Data:    nil,
+		})
+	}
+
+	companyDBData := db.Companies{
+		Name:           oracleCloudCompData.Name,
+		BaseUrl:        apiURL,
+		CareerSiteType: string(types.OracleCloud),
+		ToScrape:       true,
+	}
+
+	if err := db.DB.Create(&companyDBData).Error; err != nil {
+		slog.Error("Failed to insert Oracle Cloud company into database",
+			"error", err,
+			"company", companyDBData,
+		)
+		return c.JSON(http.StatusInternalServerError, api_models.StdResponse{
+			Message: "Failed to insert company.",
+			Data:    nil,
+		})
+	}
+
+	slog.Info("Inserted Oracle Cloud Company to DB.")
+	return c.JSON(http.StatusAccepted, api_models.StdResponse{
+		Message: fmt.Sprintf("Added %s company to scrape list", oracleCloudCompData.Name),
 		Data:    nil,
 	})
 }

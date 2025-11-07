@@ -5,6 +5,8 @@ This application provides a job scraping service with a Vue.js frontend for mana
 ## Features
 
 - **Add Workday Companies**: Add companies using Workday as their career site
+- **Add Greenhouse Companies**: Add companies using Greenhouse as their career site
+- **Add Oracle Cloud Companies**: Add companies using Oracle Cloud as their career site
 - **Job Search**: Search jobs by company name and/or job title
 - **Latest Jobs**: View the most recently posted jobs
 - **Company Management**: View all registered companies
@@ -13,6 +15,8 @@ This application provides a job scraping service with a Vue.js frontend for mana
 
 ### Company Management
 - `POST /add_scrape_company/workday` - Add a new Workday company
+- `POST /add_scrape_company/greenhouse` - Add a new Greenhouse company
+- `POST /add_scrape_company/oraclecloud` - Add a new Oracle Cloud company
 - `GET /api/companies` - Get all registered companies
 
 ### Job Search
@@ -104,10 +108,76 @@ curl -X POST http://localhost:8080/add_scrape_company/workday \
   }'
 ```
 
+### Adding a Greenhouse Company
+
+To add a company that uses Greenhouse for job postings, you need:
+
+1. **Company Name**: The display name for the company
+2. **Base URL**: The Greenhouse boards API URL (e.g., `https://boards-api.greenhouse.io/v1/boards/companyname`)
+
+**Sample curl command:**
+```bash
+curl -X POST http://localhost:8080/add_scrape_company/greenhouse \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Example Company",
+    "base_url": "https://boards-api.greenhouse.io/v1/boards/examplecompany"
+  }'
+```
+
+### Adding an Oracle Cloud Company
+
+To add a company that uses Oracle Cloud for job postings:
+
+1. **Company Name**: The display name for the company
+2. **Browser URL**: Copy the full URL from your browser after selecting category and location filters on the Oracle career site
+
+**Important Notes:**
+- Navigate to the Oracle career site in your browser
+- Optionally select desired **category** and **location** filters (categories are not required)
+- Copy the complete URL from your browser's address bar
+- The URL must contain the site number (e.g., `/sites/CX_1001/`)
+- If `selectedPostingDatesFacet` is missing, it will default to 7 days
+- Multiple categories are supported if provided (separated by semicolons in the URL)
+
+**Example Browser URLs:**
+
+With categories:
+```
+https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs?selectedCategoriesFacet=300000086152753&selectedPostingDatesFacet=7
+```
+
+Without categories (scrapes all jobs):
+```
+https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs
+```
+
+**Sample curl command:**
+```bash
+curl -X POST http://localhost:8080/add_scrape_company/oraclecloud \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Example Company",
+    "browser_url": "https://company.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs"
+  }'
+```
+
+Or with specific categories:
+```bash
+curl -X POST http://localhost:8080/add_scrape_company/oraclecloud \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Example Company",
+    "browser_url": "https://company.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs?selectedCategoriesFacet=300000086152753"
+  }'
+```
+
+The backend will automatically transform the browser URL to the appropriate REST API endpoint.
+
 ### Searching Jobs
 
 Use the web interface at `http://localhost:8080` to:
-- Add new companies
+- Add new companies (Workday, Greenhouse, or Oracle Cloud)
 - Search for jobs by company and/or title
 - View latest job postings
 - Browse registered companies
@@ -117,8 +187,8 @@ Use the web interface at `http://localhost:8080` to:
 ### Companies Table
 - `name` (Primary Key): Company name
 - `base_url`: Career site URL
-- `career_site_type`: Type of career site (e.g., "workday")
-- `api_request_body`: JSON configuration for API requests
+- `career_site_type`: Type of career site (e.g., "workday", "greenhouse", "oraclecloud")
+- `api_request_body`: JSON configuration for API requests (optional, used by Workday)
 - `to_scrape`: Boolean indicating if company should be scraped
 
 ### Jobs Table

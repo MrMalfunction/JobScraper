@@ -18,6 +18,11 @@ type AddGreenhouseCompanyScrapeList struct {
 	BaseUrl string `json:"base_url"`
 }
 
+type AddOracleCloudCompanyScrapeList struct {
+	Name       string `json:"name"`
+	BrowserUrl string `json:"browser_url"`
+}
+
 type JobSearchRequest struct {
 	Company string `query:"company" json:"company"`
 	Title   string `query:"title" json:"title"`

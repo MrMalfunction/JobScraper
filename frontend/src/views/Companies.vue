@@ -46,6 +46,14 @@
                     <p>Greenhouse Sites</p>
                 </div>
             </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">☁️</div>
+                <div class="stat-content">
+                    <h3>{{ oraclecloudCompanies }}</h3>
+                    <p>Oracle Cloud Sites</p>
+                </div>
+            </div>
         </div>
 
         <!-- Companies List -->
@@ -146,6 +154,7 @@
                         >
                             <option value="workday">Workday</option>
                             <option value="greenhouse">Greenhouse</option>
+                            <option value="oraclecloud">Oracle Cloud</option>
                         </select>
                         <small class="form-help">
                             Select the career site platform used by the company
@@ -164,7 +173,7 @@
                             />
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group" v-if="companyForm.type !== 'oraclecloud'">
                             <label for="baseUrl">Base URL:</label>
                             <input
                                 id="baseUrl"
@@ -181,6 +190,40 @@
                                 Example:
                                 https://boards-api.greenhouse.io/v1/boards/sonyinteractiveentertainmentglobal
                             </small>
+                        </div>
+                    </div>
+
+                    <!-- Oracle Cloud specific fields -->
+                    <div v-if="companyForm.type === 'oraclecloud'" class="form-group">
+                        <label for="browserUrl">Browser URL (from Oracle Career Site):</label>
+                        <textarea
+                            id="browserUrl"
+                            v-model="companyForm.browserUrl"
+                            rows="4"
+                            placeholder="https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs?lastSelectedFacet=CATEGORIES&location=United+States&locationId=300000000289738&locationLevel=country&mode=location&selectedCategoriesFacet=300000086152753&selectedPostingDatesFacet=7"
+                            :required="companyForm.type === 'oraclecloud'"
+                        ></textarea>
+                        <div class="form-help warning-box">
+                            <strong>⚠️ Important:</strong>
+                            <ul style="margin: 0.5rem 0; padding-left: 1.5rem">
+                                <li>
+                                    Copy the URL from your browser. You can optionally select
+                                    category and location filters on the Oracle career site before
+                                    copying
+                                </li>
+                                <li>
+                                    The URL must be from an Oracle Cloud career site (contains
+                                    <code>/sites/CX_XXXX/jobs</code>)
+                                </li>
+                                <li>
+                                    Categories (<code>selectedCategoriesFacet</code>) are optional -
+                                    if provided, multiple categories will be handled automatically
+                                </li>
+                                <li>
+                                    If <code>selectedPostingDatesFacet</code> is missing, it will
+                                    default to 7 days
+                                </li>
+                            </ul>
                         </div>
                     </div>
 
@@ -234,6 +277,7 @@ export default {
                 type: "workday",
                 name: "",
                 baseUrl: "",
+                browserUrl: "",
                 reqBody:
                     '{"searchText":"","locations":[],"jobFamilies":[],"postedWithin":"","limit":20,"offset":0}',
             },
@@ -261,6 +305,10 @@ export default {
 
         greenhouseCompanies() {
             return this.companies.filter((c) => c.career_site_type === "greenhouse").length;
+        },
+
+        oraclecloudCompanies() {
+            return this.companies.filter((c) => c.career_site_type === "oraclecloud").length;
         },
     },
 
@@ -304,6 +352,11 @@ export default {
                         name: this.companyForm.name,
                         base_url: this.companyForm.baseUrl,
                     });
+                } else if (this.companyForm.type === "oraclecloud") {
+                    response = await axios.post("/add_scrape_company/oraclecloud", {
+                        name: this.companyForm.name,
+                        browser_url: this.companyForm.browserUrl,
+                    });
                 }
 
                 this.addCompanyMessage = response.data.message;
@@ -329,6 +382,7 @@ export default {
             this.companyForm.type = "workday";
             this.companyForm.name = "";
             this.companyForm.baseUrl = "";
+            this.companyForm.browserUrl = "";
             this.companyForm.reqBody =
                 '{"searchText":"","locations":[],"jobFamilies":[],"postedWithin":"","limit":20,"offset":0}';
             this.addCompanyMessage = "";
@@ -338,6 +392,7 @@ export default {
             // Clear form fields when type changes
             this.companyForm.name = "";
             this.companyForm.baseUrl = "";
+            this.companyForm.browserUrl = "";
             this.addCompanyMessage = "";
         },
 
@@ -817,6 +872,28 @@ export default {
     background: #fed7d7;
     color: #e53e3e;
     border: 1px solid #feb2b2;
+}
+
+.warning-box {
+    background: #fffbeb;
+    border: 1px solid #fbbf24;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+}
+
+.warning-box ul {
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.warning-box code {
+    background: #fef3c7;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: #92400e;
 }
 
 @media (max-width: 768px) {

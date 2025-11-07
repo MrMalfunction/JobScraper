@@ -21,6 +21,10 @@ func SubmitGreenhouseCompanyToScrape(c echo.Context) error {
 	return service_scraper.AddGreenhouseCompanyToScrapeList(c)
 }
 
+func SubmitOracleCloudCompanyToScrape(c echo.Context) error {
+	return service_scraper.AddOracleCloudCompanyToScrapeList(c)
+}
+
 // Job search endpoints
 func SearchJobs(c echo.Context) error {
 	return service_jobs.SearchJobs(c)

@@ -1,17 +1,13 @@
 package greenhouse
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"job-scraper/internal/db"
+	"job-scraper/internal/scraper/common"
 	"log/slog"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
-
-	"unicode/utf8"
 
 	"github.com/k3a/html2text"
 	"resty.dev/v3"
@@ -50,32 +46,6 @@ type GreenhouseJobDetail struct {
 }
 
 type GreenhouseScraper struct{}
-
-func getSHA256Hash(strToHash string) string {
-	h := sha256.New()
-	h.Write([]byte(strToHash))
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-func cleanUTF8String(s string) string {
-	if utf8.ValidString(s) {
-		return s
-	}
-	// Remove invalid UTF-8 sequences
-	return strings.ToValidUTF8(s, "")
-}
-
-func removeExtraNewlines(s string) string {
-	// Replace multiple consecutive newlines (with possible spaces/tabs between) with double newlines
-	re := regexp.MustCompile(`\n[\s]*\n[\s\n]*`)
-	cleaned := re.ReplaceAllString(s, "\n\n")
-
-	// Replace any remaining multiple newlines with double newlines
-	re2 := regexp.MustCompile(`\n{3,}`)
-	cleaned = re2.ReplaceAllString(cleaned, "\n\n")
-
-	return strings.TrimSpace(cleaned)
-}
 
 func parseGreenhouseDate(dateStr string) (time.Time, error) {
 	// Parse ISO 8601 format: "2025-10-29T09:22:45-04:00"
@@ -210,26 +180,12 @@ func (gs GreenhouseScraper) jobDetailsScraperWorker(baseURL string, jobChannel <
 		// Update job details
 		job.JobId = result.RequisitionID
 		job.JobLink = result.AbsoluteURL
-		job.JobDetails = removeExtraNewlines(cleanUTF8String(html2text.HTML2Text(result.Content)))
+		job.JobDetails = common.RemoveExtraNewlines(common.CleanUTF8String(html2text.HTML2Text(result.Content)))
 		job.JobRole = result.Title
-		job.JobHash = getSHA256Hash(job.JobLink)
+		job.JobHash = common.GetSHA256Hash(job.JobLink)
 
-		// Insert job into database only if it doesn't exist
-		dbResult := db.DB.FirstOrCreate(job, db.Jobs{JobHash: job.JobHash})
-		if dbResult.Error != nil {
-			slog.Error("[Greenhouse_Scraper_Worker] Failed to insert job into database",
-				"jobLink", job.JobLink,
-				"jobId", job.JobId,
-				"error", dbResult.Error)
-		} else if dbResult.RowsAffected > 0 {
-			slog.Info("[Greenhouse_Scraper_Worker] Job inserted into database",
-				"jobLink", job.JobLink,
-				"jobId", job.JobId)
-		} else {
-			slog.Info("[Greenhouse_Scraper_Worker] Job already exists, skipping insert",
-				"jobLink", job.JobLink,
-				"jobId", job.JobId)
-		}
+		// Insert job into database
+		common.InsertJobToDB(job, "Greenhouse_Scraper")
 
 		slog.Info("[Greenhouse_Scraper_Worker] Job Scraped", "JobLink", job.JobLink)
 	}
