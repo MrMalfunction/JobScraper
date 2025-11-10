@@ -63,10 +63,8 @@ func isJobPublishedRecently(firstPublished string, scrapeDateLimitTruncated time
 		return false
 	}
 
-	publishedDateTruncated := publishedTime.Truncate(24 * time.Hour)
-
-	// Check if the job was published within the last 24 hours or on the scrape date
-	return publishedDateTruncated.After(scrapeDateLimitTruncated) || publishedDateTruncated.Equal(scrapeDateLimitTruncated)
+	// Check if we should scrape this job using centralized function
+	return common.ShouldScrapeJob(publishedTime, scrapeDateLimitTruncated)
 }
 
 func listJobsAndStartDetailsScrape(company db.Companies, scrapeDateLimitTruncated time.Time, jobDetailScrapeChannel chan<- *db.Jobs) {
@@ -203,7 +201,8 @@ func extractJobIDFromURL(url string) string {
 }
 
 func (gs GreenhouseScraper) StartScraping(companiesToScrape <-chan db.Companies, scrapeDayLimit time.Time) {
-	scrapeDateLimitTruncated := scrapeDayLimit.Truncate(24 * time.Hour)
+	// Get date at midnight using centralized function
+	scrapeDateLimitTruncated := common.GetDateMidnight(scrapeDayLimit)
 
 	jobDetailScrapeChannel := make(chan *db.Jobs, 10000)
 	slog.Info("[Greenhouse_Scraper] Greenhouse Jobs Details channel created")

@@ -4,6 +4,7 @@ import (
 	"job-scraper/internal/db"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestGetSHA256Hash(t *testing.T) {
@@ -214,6 +215,209 @@ func TestRemoveExtraNewlinesComplexScenarios(t *testing.T) {
 			result := RemoveExtraNewlines(tt.input)
 			if !tt.validate(result) {
 				t.Errorf("RemoveExtraNewlines() failed validation: %s\nResult: %q", tt.desc, result)
+			}
+		})
+	}
+}
+
+func TestGetTodayMidnight(t *testing.T) {
+	today := GetTodayMidnight()
+
+	// Verify it's midnight (00:00:00)
+	if today.Hour() != 0 || today.Minute() != 0 || today.Second() != 0 || today.Nanosecond() != 0 {
+		t.Errorf("Expected midnight (00:00:00), got %02d:%02d:%02d.%09d",
+			today.Hour(), today.Minute(), today.Second(), today.Nanosecond())
+	}
+
+	// Verify it's in local timezone
+	if today.Location() != time.Local {
+		t.Errorf("Expected local timezone, got %v", today.Location())
+	}
+
+	// Verify it's today's date
+	now := time.Now()
+	if today.Year() != now.Year() || today.Month() != now.Month() || today.Day() != now.Day() {
+		t.Errorf("Expected today's date %v, got %v", now.Format("2006-01-02"), today.Format("2006-01-02"))
+	}
+}
+
+func TestGetDateMidnight(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    time.Time
+		expected string
+	}{
+		{
+			name:     "Date with time",
+			input:    time.Date(2025, 11, 9, 15, 30, 45, 123456789, time.Local),
+			expected: "2025-11-09 00:00:00",
+		},
+		{
+			name:     "Already at midnight",
+			input:    time.Date(2025, 11, 9, 0, 0, 0, 0, time.Local),
+			expected: "2025-11-09 00:00:00",
+		},
+		{
+			name:     "End of day",
+			input:    time.Date(2025, 11, 9, 23, 59, 59, 999999999, time.Local),
+			expected: "2025-11-09 00:00:00",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetDateMidnight(tt.input)
+
+			// Verify it's midnight
+			if result.Hour() != 0 || result.Minute() != 0 || result.Second() != 0 || result.Nanosecond() != 0 {
+				t.Errorf("Expected midnight, got %02d:%02d:%02d.%09d",
+					result.Hour(), result.Minute(), result.Second(), result.Nanosecond())
+			}
+
+			// Verify the date matches
+			resultStr := result.Format("2006-01-02 15:04:05")
+			if resultStr != tt.expected {
+				t.Errorf("Expected %s, got %s", tt.expected, resultStr)
+			}
+
+			// Verify it's in local timezone
+			if result.Location() != time.Local {
+				t.Errorf("Expected local timezone, got %v", result.Location())
+			}
+		})
+	}
+}
+
+func TestIsJobWithinScrapeLimit(t *testing.T) {
+	// Create a reference scrape limit: Nov 5, 2025
+	scrapeLimit := time.Date(2025, 11, 5, 0, 0, 0, 0, time.Local)
+
+	tests := []struct {
+		name        string
+		jobPostDate time.Time
+		expected    bool
+	}{
+		{
+			name:        "Job posted on scrape limit date (should include)",
+			jobPostDate: time.Date(2025, 11, 5, 10, 30, 0, 0, time.Local),
+			expected:    true,
+		},
+		{
+			name:        "Job posted after scrape limit",
+			jobPostDate: time.Date(2025, 11, 9, 15, 0, 0, 0, time.Local),
+			expected:    true,
+		},
+		{
+			name:        "Job posted before scrape limit",
+			jobPostDate: time.Date(2025, 11, 4, 23, 59, 59, 0, time.Local),
+			expected:    false,
+		},
+		{
+			name:        "Job posted one day after limit",
+			jobPostDate: time.Date(2025, 11, 6, 0, 0, 0, 0, time.Local),
+			expected:    true,
+		},
+		{
+			name:        "Job posted today (Nov 9)",
+			jobPostDate: time.Date(2025, 11, 9, 12, 0, 0, 0, time.Local),
+			expected:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsJobWithinScrapeLimit(tt.jobPostDate, scrapeLimit)
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v for job date %v vs limit %v",
+					tt.expected, result, tt.jobPostDate.Format("2006-01-02"), scrapeLimit.Format("2006-01-02"))
+			}
+		})
+	}
+}
+
+func TestIsJobFromToday(t *testing.T) {
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+
+	tests := []struct {
+		name        string
+		jobPostDate time.Time
+		expected    bool
+	}{
+		{
+			name:        "Job posted today at noon",
+			jobPostDate: time.Date(today.Year(), today.Month(), today.Day(), 12, 0, 0, 0, time.Local),
+			expected:    true,
+		},
+		{
+			name:        "Job posted today at midnight",
+			jobPostDate: today,
+			expected:    true,
+		},
+		{
+			name:        "Job posted yesterday",
+			jobPostDate: today.AddDate(0, 0, -1),
+			expected:    false,
+		},
+		{
+			name:        "Job posted tomorrow",
+			jobPostDate: today.AddDate(0, 0, 1),
+			expected:    false,
+		},
+		{
+			name:        "Job posted 7 days ago",
+			jobPostDate: today.AddDate(0, 0, -7),
+			expected:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsJobFromToday(tt.jobPostDate)
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v for job date %v",
+					tt.expected, result, tt.jobPostDate.Format("2006-01-02"))
+			}
+		})
+	}
+}
+
+func TestShouldScrapeJob(t *testing.T) {
+	scrapeLimit := time.Date(2025, 11, 5, 0, 0, 0, 0, time.Local)
+
+	tests := []struct {
+		name        string
+		jobPostDate time.Time
+		expected    bool
+	}{
+		{
+			name:        "Job within scrape limit",
+			jobPostDate: time.Date(2025, 11, 9, 10, 0, 0, 0, time.Local),
+			expected:    true,
+		},
+		{
+			name:        "Job on scrape limit boundary",
+			jobPostDate: time.Date(2025, 11, 5, 0, 0, 0, 0, time.Local),
+			expected:    true,
+		},
+		{
+			name:        "Job before scrape limit",
+			jobPostDate: time.Date(2025, 11, 4, 23, 59, 59, 0, time.Local),
+			expected:    false,
+		},
+		{
+			name:        "Job with time on limit date",
+			jobPostDate: time.Date(2025, 11, 5, 14, 30, 45, 0, time.Local),
+			expected:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ShouldScrapeJob(tt.jobPostDate, scrapeLimit)
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v for job date %v vs limit %v",
+					tt.expected, result, tt.jobPostDate.Format("2006-01-02"), scrapeLimit.Format("2006-01-02"))
 			}
 		})
 	}

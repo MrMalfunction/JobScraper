@@ -116,9 +116,9 @@ func listJobsAndStartDetailsScrape(company db.Companies, scrapeDateLimitTruncate
 		allJobsTooOld := true
 		for _, posting := range result.JobPostings {
 			jobPostDate := parsePostedDate(posting.PostedOn)
-			jobPostDateTruncated := jobPostDate.Truncate(24 * time.Hour)
 
-			if jobPostDateTruncated.After(scrapeDateLimitTruncated) || jobPostDateTruncated.Equal(scrapeDateLimitTruncated) {
+			// Check if we should scrape this job using centralized function
+			if common.ShouldScrapeJob(jobPostDate, scrapeDateLimitTruncated) {
 				allJobsTooOld = false
 				job := &db.Jobs{
 					JobHash:      "",
@@ -187,8 +187,8 @@ func (ws WorkdayScraper) jobDetailsScraperWorker(jobChannel <-chan *db.Jobs) {
 }
 
 func (ws WorkdayScraper) StartScraping(companiesToScrape <-chan db.Companies, scrapeDayLimit time.Time) {
-	scrapeDateLimitTruncated := scrapeDayLimit.Truncate(24 * time.Hour)
-	// now := time.Now().Truncate(24 * time.Hour)
+	// Get date at midnight using centralized function
+	scrapeDateLimitTruncated := common.GetDateMidnight(scrapeDayLimit)
 
 	jobDetailScrapeChannel := make(chan *db.Jobs, 10000)
 	slog.Info("[Workday_Scraper] Workday Jobs Details channel created")

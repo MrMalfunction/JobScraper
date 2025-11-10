@@ -21,8 +21,6 @@ type OracleCloudRequisitionItem struct {
 	PostedDate             string `json:"PostedDate"`
 	PrimaryLocation        string `json:"PrimaryLocation"`
 	ShortDescriptionStr    string `json:"ShortDescriptionStr"`
-	Relevancy              int    `json:"Relevancy"`
-	Distance               int    `json:"Distance"`
 	PrimaryLocationCountry string `json:"PrimaryLocationCountry"`
 }
 
@@ -106,29 +104,50 @@ func TransformBrowserURLToAPIURL(browserURL string) (string, error) {
 		postingDatesFacet = "7"
 	}
 
+	// Get optional locationId
+	locationId := queryParams.Get("locationId")
+
+	// Get optional lastSelectedFacet
+	lastSelectedFacet := queryParams.Get("lastSelectedFacet")
+
 	// Build API URL with finder parameters
-	finderParts := []string{
-		"findReqs",
+	// Format: findReqs;siteNumber=CX_1001,param1=val1,param2=val2
+	params := []string{
 		fmt.Sprintf("siteNumber=%s", siteNumber),
-		"limit=25",
-		"offset=0",
+	}
+
+	// Add facetsList - standard list of facets
+	params = append(params, "facetsList=LOCATIONS%3BWORK_LOCATIONS%3BWORKPLACE_TYPES%3BTITLES%3BCATEGORIES%3BORGANIZATIONS%3BPOSTING_DATES%3BFLEX_FIELDS")
+
+	// Add limit and offset
+	params = append(params, "limit=25", "offset=0")
+
+	// Add optional lastSelectedFacet
+	if lastSelectedFacet != "" {
+		params = append(params, fmt.Sprintf("lastSelectedFacet=%s", lastSelectedFacet))
+	}
+
+	// Add optional locationId
+	if locationId != "" {
+		params = append(params, fmt.Sprintf("locationId=%s", locationId))
 	}
 
 	// Add optional category facet if provided
 	if categoriesFacet != "" {
-		finderParts = append(finderParts, fmt.Sprintf("selectedCategoriesFacet=%s", categoriesFacet))
+		params = append(params, fmt.Sprintf("selectedCategoriesFacet=%s", categoriesFacet))
 	}
 
 	// Add posting dates facet
-	finderParts = append(finderParts, fmt.Sprintf("selectedPostingDatesFacet=%s", postingDatesFacet))
+	params = append(params, fmt.Sprintf("selectedPostingDatesFacet=%s", postingDatesFacet))
 
-	// Add sort by
-	finderParts = append(finderParts, "sortBy=POSTING_DATES_DESC")
+	// Always add sort by POSTING_DATES_DESC
+	params = append(params, "sortBy=POSTING_DATES_DESC")
 
-	finder := strings.Join(finderParts, ";")
+	// Build finder: findReqs;param1,param2,param3
+	finder := "findReqs;" + strings.Join(params, ",")
 
 	apiURL := fmt.Sprintf(
-		"%s/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList&finder=%s",
+		"%s/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList.workLocation,requisitionList.otherWorkLocations,requisitionList.secondaryLocations,flexFieldsFacet.values,requisitionList.requisitionFlexFields&finder=%s",
 		baseURL,
 		finder,
 	)
@@ -165,11 +184,18 @@ func ParseOracleAPIURL(apiURL string) (baseURL, siteNumber string, err error) {
 	}
 
 	// Extract siteNumber from finder
-	finderParts := strings.Split(finder, ";")
-	for _, part := range finderParts {
-		if strings.HasPrefix(part, "siteNumber=") {
-			siteNumber = strings.TrimPrefix(part, "siteNumber=")
-			break
+	// Format: findReqs;siteNumber=CX_1001,param1=val1,param2=val2
+	// First split by semicolon to separate action from parameters
+	semicolonParts := strings.SplitN(finder, ";", 2)
+
+	// Then split parameters by comma
+	if len(semicolonParts) > 1 {
+		paramParts := strings.Split(semicolonParts[1], ",")
+		for _, part := range paramParts {
+			if strings.HasPrefix(part, "siteNumber=") {
+				siteNumber = strings.TrimPrefix(part, "siteNumber=")
+				break
+			}
 		}
 	}
 
@@ -191,7 +217,17 @@ func parseOracleDate(dateStr string) time.Time {
 	}
 
 	for _, layout := range layouts {
-		if t, err := time.Parse(layout, dateStr); err == nil {
+		var t time.Time
+		var err error
+
+		// For date-only format, parse in local timezone
+		if layout == "2006-01-02" {
+			t, err = time.ParseInLocation(layout, dateStr, time.Local)
+		} else {
+			t, err = time.Parse(layout, dateStr)
+		}
+
+		if err == nil {
 			return t
 		}
 	}
@@ -284,7 +320,7 @@ func (ocs OracleCloudScraper) fetchJobDetails(rClient *resty.Client, baseURL, si
 }
 
 func (ocs OracleCloudScraper) jobDetailsScraperWorker(jobChannel <-chan *jobDetailRequest) {
-	slog.Debug("[OracleCloud_Scraper] Worker started to scrape Job Details")
+	slog.Debug("[OracleCloud_Scraper_Worker] Worker started")
 	rClient := resty.New()
 	rClient.SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 	defer rClient.Close()
@@ -294,6 +330,7 @@ func (ocs OracleCloudScraper) jobDetailsScraperWorker(jobChannel <-chan *jobDeta
 		if err != nil {
 			slog.Error("[OracleCloud_Scraper_Worker] Failed to fetch job details",
 				"jobId", req.requisition.Id,
+				"company", req.company.Name,
 				"error", err)
 			continue
 		}
@@ -304,7 +341,7 @@ func (ocs OracleCloudScraper) jobDetailsScraperWorker(jobChannel <-chan *jobDeta
 		// Insert job into database
 		common.InsertJobToDB(job, "OracleCloud_Scraper")
 	}
-	slog.Info("[OracleCloud_Scraper_Worker] Job Details Worker shutting down")
+	slog.Info("[OracleCloud_Scraper_Worker] Worker shutting down")
 }
 
 func listJobsAndStartDetailsScrape(
@@ -352,14 +389,23 @@ func listJobsAndStartDetailsScrape(
 	}
 
 	// Parse finder to extract parameters
+	// Format: findReqs;siteNumber=CX_1001,param1=val1,param2=val2
 	finderParams := make(map[string]string)
-	parts := strings.Split(finder, ";")
-	for _, part := range parts {
-		kv := strings.Split(part, "=")
-		if len(kv) == 2 {
-			finderParams[kv[0]] = kv[1]
-		} else if len(kv) == 1 {
-			finderParams["action"] = kv[0]
+
+	// First split by semicolon to separate action from parameters
+	semicolonParts := strings.SplitN(finder, ";", 2)
+	if len(semicolonParts) > 0 {
+		finderParams["action"] = semicolonParts[0]
+	}
+
+	// Then split parameters by comma
+	if len(semicolonParts) > 1 {
+		paramParts := strings.Split(semicolonParts[1], ",")
+		for _, part := range paramParts {
+			kv := strings.SplitN(part, "=", 2)
+			if len(kv) == 2 {
+				finderParams[kv[0]] = kv[1]
+			}
 		}
 	}
 
@@ -372,31 +418,46 @@ func listJobsAndStartDetailsScrape(
 		finderParams["limit"] = fmt.Sprintf("%d", limit)
 
 		// Rebuild finder string
-		var finderParts []string
-		if action, ok := finderParams["action"]; ok {
-			finderParts = append(finderParts, action)
-		}
-		// Add parameters in specific order
-		if siteNum, ok := finderParams["siteNumber"]; ok {
-			finderParts = append(finderParts, fmt.Sprintf("siteNumber=%s", siteNum))
-		}
-		finderParts = append(finderParts, fmt.Sprintf("limit=%d", limit))
-		finderParts = append(finderParts, fmt.Sprintf("offset=%d", offset))
-		if categories, ok := finderParams["selectedCategoriesFacet"]; ok {
-			finderParts = append(finderParts, fmt.Sprintf("selectedCategoriesFacet=%s", categories))
-		}
-		if postingDates, ok := finderParams["selectedPostingDatesFacet"]; ok {
-			finderParts = append(finderParts, fmt.Sprintf("selectedPostingDatesFacet=%s", postingDates))
-		}
-		if sortBy, ok := finderParams["sortBy"]; ok {
-			finderParts = append(finderParts, fmt.Sprintf("sortBy=%s", sortBy))
+		// Format: findReqs;siteNumber=CX_1001,param1=val1,param2=val2
+		action := "findReqs"
+		if act, ok := finderParams["action"]; ok {
+			action = act
 		}
 
-		newFinder := strings.Join(finderParts, ";")
+		// Add parameters in specific order to match Oracle API expectations
+		var params []string
+		if siteNum, ok := finderParams["siteNumber"]; ok {
+			params = append(params, fmt.Sprintf("siteNumber=%s", siteNum))
+		}
+		// Add facetsList if present
+		if facetsList, ok := finderParams["facetsList"]; ok {
+			params = append(params, fmt.Sprintf("facetsList=%s", facetsList))
+		}
+		params = append(params, fmt.Sprintf("limit=%d", limit))
+		params = append(params, fmt.Sprintf("offset=%d", offset))
+		// Add lastSelectedFacet if present
+		if lastFacet, ok := finderParams["lastSelectedFacet"]; ok {
+			params = append(params, fmt.Sprintf("lastSelectedFacet=%s", lastFacet))
+		}
+		// Add locationId if present
+		if locationId, ok := finderParams["locationId"]; ok {
+			params = append(params, fmt.Sprintf("locationId=%s", locationId))
+		}
+		if categories, ok := finderParams["selectedCategoriesFacet"]; ok {
+			params = append(params, fmt.Sprintf("selectedCategoriesFacet=%s", categories))
+		}
+		if postingDates, ok := finderParams["selectedPostingDatesFacet"]; ok {
+			params = append(params, fmt.Sprintf("selectedPostingDatesFacet=%s", postingDates))
+		}
+		// Always use POSTING_DATES_DESC for sorting
+		params = append(params, "sortBy=POSTING_DATES_DESC")
+
+		// Build finder with semicolon after action, comma for params
+		newFinder := action + ";" + strings.Join(params, ",")
 
 		// Build full API URL
 		apiURL := fmt.Sprintf(
-			"%s/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList&finder=%s",
+			"%s/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList.workLocation,requisitionList.otherWorkLocations,requisitionList.secondaryLocations,flexFieldsFacet.values,requisitionList.requisitionFlexFields&finder=%s",
 			baseURL,
 			url.QueryEscape(newFinder),
 		)
@@ -419,7 +480,7 @@ func listJobsAndStartDetailsScrape(
 		result := resp.Result().(*OracleCloudJobListResponse)
 
 		if len(result.Items) == 0 {
-			slog.Info("No items in response, stopping pagination", "company", company.Name)
+			slog.Info("[OracleCloud_Scraper] No items in response, stopping pagination", "company", company.Name)
 			break
 		}
 
@@ -427,24 +488,30 @@ func listJobsAndStartDetailsScrape(
 		requisitionList := result.Items[0].RequisitionList
 		totalJobs := result.Items[0].TotalJobsCount
 
-		slog.Info("Successfully fetched Oracle Cloud jobs",
+		slog.Debug("[OracleCloud_Scraper] Fetched jobs page",
 			"company", company.Name,
 			"offset", offset,
-			"jobs_in_response", len(requisitionList),
+			"jobs_in_page", len(requisitionList),
 			"total_jobs", totalJobs)
 
 		if len(requisitionList) == 0 {
-			slog.Info("No more jobs found, stopping pagination", "company", company.Name)
+			slog.Info("[OracleCloud_Scraper] No more jobs found, stopping pagination", "company", company.Name)
 			break
 		}
 
-		allJobsTooOld := true
+		allJobsNotToday := true
+		jobsScrapedInPage := 0
 		for _, posting := range requisitionList {
 			jobPostDate := parseOracleDate(posting.PostedDate)
-			jobPostDateTruncated := jobPostDate.Truncate(24 * time.Hour)
 
-			if jobPostDateTruncated.After(scrapeDateLimitTruncated) || jobPostDateTruncated.Equal(scrapeDateLimitTruncated) {
-				allJobsTooOld = false
+			// Check if job is from today using centralized function
+			if common.IsJobFromToday(jobPostDate) {
+				allJobsNotToday = false
+			}
+
+			// Check if we should scrape this job using centralized function
+			if common.ShouldScrapeJob(jobPostDate, scrapeDateLimitTruncated) {
+				jobsScrapedInPage++
 				// Send to worker for detailed scraping
 				jobDetailScrapeChannel <- &jobDetailRequest{
 					requisition: &posting,
@@ -455,14 +522,22 @@ func listJobsAndStartDetailsScrape(
 			}
 		}
 
-		if allJobsTooOld {
-			slog.Info("All jobs in this batch are too old, stopping pagination", "company", company.Name)
+		if jobsScrapedInPage > 0 {
+			slog.Info("[OracleCloud_Scraper] Jobs queued for scraping",
+				"company", company.Name,
+				"count", jobsScrapedInPage,
+				"offset", offset)
+		}
+
+		// Stop if we've seen a full page without any jobs from today
+		if allJobsNotToday {
+			slog.Info("[OracleCloud_Scraper] Full page without today's jobs, stopping pagination", "company", company.Name)
 			break
 		}
 
 		// Check if we've reached the end
 		if offset+len(requisitionList) >= totalJobs {
-			slog.Info("Reached end of job listings", "company", company.Name)
+			slog.Info("[OracleCloud_Scraper] Reached end of job listings", "company", company.Name)
 			break
 		}
 
@@ -471,7 +546,8 @@ func listJobsAndStartDetailsScrape(
 }
 
 func (ocs OracleCloudScraper) StartScraping(companiesToScrape <-chan db.Companies, scrapeDayLimit time.Time) {
-	scrapeDateLimitTruncated := scrapeDayLimit.Truncate(24 * time.Hour)
+	// Get date at midnight using centralized function
+	scrapeDateLimitTruncated := common.GetDateMidnight(scrapeDayLimit)
 
 	slog.Info("[OracleCloud_Scraper] Starting Oracle Cloud scraper")
 
@@ -483,8 +559,8 @@ func (ocs OracleCloudScraper) StartScraping(companiesToScrape <-chan db.Companie
 	scraperWorkerCount := 4
 	for range make([]struct{}, scraperWorkerCount) {
 		go ocs.jobDetailsScraperWorker(jobDetailScrapeChannel)
-		slog.Info("[OracleCloud_Scraper] Job details scraper started")
 	}
+	slog.Info("[OracleCloud_Scraper] Started workers", "count", scraperWorkerCount)
 
 	// Use WaitGroup to track company listing workers
 	var wg sync.WaitGroup

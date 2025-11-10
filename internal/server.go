@@ -29,8 +29,19 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 }
 
 func StartServer() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	// Configure log level based on environment variable
+	logLevel := slog.LevelInfo // default to Info
+	if os.Getenv("LOG_LEVEL") == "debug" || os.Getenv("LOG_LEVEL") == "DEBUG" {
+		logLevel = slog.LevelDebug
+	}
+
+	opts := &slog.HandlerOptions{
+		Level: logLevel,
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, opts))
 	slog.SetDefault(logger)
+
+	logger.Debug("Logger initialized", "level", logLevel.String())
 
 	// Load config
 	config.LoadSecrets()

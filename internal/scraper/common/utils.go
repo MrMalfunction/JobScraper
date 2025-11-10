@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -63,4 +64,40 @@ func InsertJobToDB(job *db.Jobs, scraperName string) bool {
 		"jobLink", job.JobLink,
 		"jobId", job.JobId)
 	return false
+}
+
+// GetTodayMidnight returns today's date at midnight in local timezone
+func GetTodayMidnight() time.Time {
+	now := time.Now()
+	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+}
+
+// GetDateMidnight returns the given time at midnight in local timezone
+func GetDateMidnight(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local)
+}
+
+// IsJobWithinScrapeLimit checks if a job's posted date is within the scrape date limit
+// jobPostDate: the date when the job was posted
+// scrapeDateLimit: the oldest date we want to scrape (inclusive)
+// Returns true if the job should be scraped, false otherwise
+func IsJobWithinScrapeLimit(jobPostDate time.Time, scrapeDateLimit time.Time) bool {
+	jobDateMidnight := GetDateMidnight(jobPostDate)
+	scrapeLimitMidnight := GetDateMidnight(scrapeDateLimit)
+
+	return jobDateMidnight.After(scrapeLimitMidnight) || jobDateMidnight.Equal(scrapeLimitMidnight)
+}
+
+// IsJobFromToday checks if a job was posted today
+func IsJobFromToday(jobPostDate time.Time) bool {
+	jobDateMidnight := GetDateMidnight(jobPostDate)
+	todayMidnight := GetTodayMidnight()
+
+	return jobDateMidnight.Equal(todayMidnight)
+}
+
+// ShouldScrapeJob is a convenience function that checks if a job should be scraped
+// based on the scrape date limit. This is the main function scrapers should use.
+func ShouldScrapeJob(jobPostDate time.Time, scrapeDateLimit time.Time) bool {
+	return IsJobWithinScrapeLimit(jobPostDate, scrapeDateLimit)
 }
