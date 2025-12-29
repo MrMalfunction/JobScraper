@@ -46,6 +46,14 @@ func GetCompanies(c echo.Context) error {
 	return service_jobs.GetCompanies(c)
 }
 
+func UpdateCompany(c echo.Context) error {
+	return service_scraper.UpdateCompany(c)
+}
+
+func DeleteCompany(c echo.Context) error {
+	return service_scraper.DeleteCompany(c)
+}
+
 func DeleteOldJobs(c echo.Context) error {
 	return service_jobs.DeleteOldJobs(c)
 }

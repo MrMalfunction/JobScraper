@@ -343,10 +343,12 @@ func GetCompanies(c echo.Context) error {
 	companyResponses := make([]api_models.CompanyResponse, len(companies))
 	for i, company := range companies {
 		companyResponses[i] = api_models.CompanyResponse{
-			Name:           company.Name,
-			BaseUrl:        company.BaseUrl,
-			CareerSiteType: company.CareerSiteType,
-			ToScrape:       company.ToScrape,
+			Name:                 company.Name,
+			BaseUrl:              company.BaseUrl,
+			CareerSiteType:       company.CareerSiteType,
+			ApiRequestBody:       company.ApiRequestBody,
+			ApiRequestQueryParam: company.ApiRequestQueryParam,
+			ToScrape:             company.ToScrape,
 		}
 	}
 

@@ -91,16 +91,32 @@
                     </div>
 
                     <div class="company-details">
-                        <div class="detail-item">
-                            <strong>Type:</strong>
-                            <span>{{ company.career_site_type }}</span>
+                        <div class="detail-row">
+                            <div class="detail-badge">
+                                <span class="badge-icon">🏷️</span>
+                                <span class="badge-text">{{ company.career_site_type }}</span>
+                            </div>
                         </div>
 
-                        <div class="detail-item">
-                            <strong>URL:</strong>
-                            <a :href="company.base_url" target="_blank" class="company-url">
-                                {{ company.base_url }}
-                            </a>
+                        <div class="detail-row url-row">
+                            <div class="url-display">
+                                <span class="url-icon">🔗</span>
+                                <a
+                                    :href="company.base_url"
+                                    target="_blank"
+                                    class="company-url"
+                                    :title="company.base_url"
+                                >
+                                    {{ truncateUrl(company.base_url) }}
+                                </a>
+                            </div>
+                            <button
+                                @click="copyToClipboard(company.base_url)"
+                                class="copy-btn"
+                                title="Copy URL"
+                            >
+                                📋
+                            </button>
                         </div>
                     </div>
 
@@ -111,13 +127,25 @@
                                 'action-btn',
                                 company.to_scrape ? 'btn-danger' : 'btn-success',
                             ]"
-                            :disabled="isTogglingStatus"
+                            :disabled="togglingCompanies[company.name]"
                         >
                             {{ company.to_scrape ? "Disable" : "Enable" }}
                         </button>
 
+                        <button @click="editCompany(company)" class="action-btn btn-secondary">
+                            ✏️ Edit
+                        </button>
+
                         <button @click="viewCompanyJobs(company)" class="action-btn btn-secondary">
-                            View Jobs
+                            📋 View Jobs
+                        </button>
+
+                        <button
+                            @click="confirmDeleteCompany(company)"
+                            class="action-btn btn-danger-outline"
+                            :disabled="isDeletingCompany"
+                        >
+                            🗑️ Delete
                         </button>
                     </div>
                 </div>
@@ -262,6 +290,150 @@
                 </form>
             </div>
         </div>
+
+        <!-- Edit Company Modal -->
+        <div v-if="showEditModal" class="modal-overlay" @click.self="closeEditModal">
+            <div class="modal-content edit-modal">
+                <div class="modal-header">
+                    <div class="modal-title">
+                        <span class="modal-icon">✏️</span>
+                        <h2>Edit Company</h2>
+                    </div>
+                    <button @click="closeEditModal" class="close-btn">✕</button>
+                </div>
+
+                <form @submit.prevent="updateCompany" class="company-form compact-form">
+                    <div class="form-row-compact">
+                        <div class="form-group">
+                            <label for="editCompanyName">
+                                <span class="label-icon">🏢</span>
+                                Company Name
+                            </label>
+                            <input
+                                id="editCompanyName"
+                                v-model="editForm.name"
+                                type="text"
+                                placeholder="e.g., Google"
+                                required
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="editCompanyType">
+                                <span class="label-icon">🏷️</span>
+                                Company Type
+                            </label>
+                            <select
+                                id="editCompanyType"
+                                v-model="editForm.career_site_type"
+                                disabled
+                            >
+                                <option value="workday">Workday</option>
+                                <option value="greenhouse">Greenhouse</option>
+                                <option value="oraclecloud">Oracle Cloud</option>
+                            </select>
+                            <small class="form-help info-help"> ℹ️ Type cannot be changed </small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editBaseUrl">
+                            <span class="label-icon">🔗</span>
+                            Base URL
+                        </label>
+                        <textarea
+                            id="editBaseUrl"
+                            v-model="editForm.base_url"
+                            rows="2"
+                            required
+                            class="url-textarea"
+                        ></textarea>
+                    </div>
+
+                    <div v-if="editForm.career_site_type === 'workday'" class="form-group">
+                        <label for="editReqBody">
+                            <span class="label-icon">📄</span>
+                            Request Body (JSON)
+                        </label>
+                        <textarea
+                            id="editReqBody"
+                            v-model="editForm.api_request_body"
+                            rows="6"
+                            class="json-textarea"
+                            placeholder='{"searchText":"","locations":[],"jobFamilies":[]}'
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group checkbox-group-compact">
+                        <label class="checkbox-label">
+                            <input type="checkbox" v-model="editForm.to_scrape" />
+                            <span class="checkbox-text">
+                                <strong>Enable scraping for this company</strong>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div v-if="editCompanyMessage" :class="['message', editCompanyMessageType]">
+                        {{ editCompanyMessage }}
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary" :disabled="isEditingCompany">
+                            <span v-if="isEditingCompany" class="spinner"></span>
+                            {{ isEditingCompany ? "Updating..." : "💾 Update Company" }}
+                        </button>
+                        <button type="button" @click="closeEditModal" class="btn btn-tertiary">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+            <div class="modal-content modal-small">
+                <div class="modal-header">
+                    <h2>⚠️ Confirm Delete</h2>
+                    <button @click="showDeleteModal = false" class="close-btn">✕</button>
+                </div>
+
+                <div class="delete-warning">
+                    <p>
+                        Are you sure you want to delete
+                        <strong>{{ companyToDelete?.name }}</strong
+                        >?
+                    </p>
+                    <p class="warning-text">
+                        This will permanently delete the company and all associated jobs. This
+                        action cannot be undone.
+                    </p>
+                </div>
+
+                <div class="modal-actions">
+                    <button
+                        @click="deleteCompany"
+                        class="btn btn-danger"
+                        :disabled="isDeletingCompany"
+                    >
+                        <span v-if="isDeletingCompany" class="spinner"></span>
+                        {{ isDeletingCompany ? "Deleting..." : "Yes, Delete" }}
+                    </button>
+                    <button
+                        @click="showDeleteModal = false"
+                        class="btn btn-tertiary"
+                        :disabled="isDeletingCompany"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Component Notification -->
+        <div v-if="notification" :class="['notification', notification.type]">
+            {{ notification.message }}
+        </div>
     </div>
 </template>
 
@@ -283,10 +455,26 @@ export default {
             },
             isLoadingCompanies: false,
             isAddingCompany: false,
-            isTogglingStatus: false,
+            togglingCompanies: {},
+            isDeletingCompany: false,
+            isEditingCompany: false,
             addCompanyMessage: "",
             addCompanyMessageType: "",
+            editCompanyMessage: "",
+            editCompanyMessageType: "",
             showAddModal: false,
+            showEditModal: false,
+            showDeleteModal: false,
+            companyToDelete: null,
+            notification: null,
+            editForm: {
+                originalName: "",
+                name: "",
+                base_url: "",
+                career_site_type: "",
+                api_request_body: "",
+                to_scrape: true,
+            },
         };
     },
 
@@ -402,27 +590,145 @@ export default {
         },
 
         async toggleCompanyStatus(company) {
-            // Note: This would require a new API endpoint to update company status
-            // For now, we'll just show a message
-            this.isTogglingStatus = true;
+            this.togglingCompanies[company.name] = true;
 
             try {
-                // Simulate API call
-                await new Promise((resolve) => setTimeout(resolve, 1000));
+                const newStatus = !company.to_scrape;
+                await axios.put(`/api/companies/${encodeURIComponent(company.name)}`, {
+                    to_scrape: newStatus,
+                });
 
-                // Update local state
-                company.to_scrape = !company.to_scrape;
+                // Update local state - find and update the company in the array
+                const companyIndex = this.companies.findIndex((c) => c.name === company.name);
+                if (companyIndex !== -1) {
+                    this.companies[companyIndex].to_scrape = newStatus;
+                }
 
                 this.showNotification(
                     "success",
-                    `Company ${company.name} ${company.to_scrape ? "enabled" : "disabled"}`,
+                    `Company ${company.name} ${newStatus ? "enabled" : "disabled"}`,
                 );
             } catch (error) {
                 console.error("Error toggling company status:", error);
-                this.showNotification("error", "Failed to update company status");
+                this.showNotification(
+                    "error",
+                    error.response?.data?.message || "Failed to update company status",
+                );
+            } finally {
+                this.togglingCompanies[company.name] = false;
+            }
+        },
+
+        editCompany(company) {
+            this.editForm.originalName = company.name;
+            this.editForm.name = company.name;
+            this.editForm.base_url = company.base_url;
+            this.editForm.career_site_type = company.career_site_type;
+            this.editForm.api_request_body = company.api_request_body || "";
+            this.editForm.to_scrape = company.to_scrape;
+            this.editCompanyMessage = "";
+            this.showEditModal = true;
+        },
+
+        closeEditModal() {
+            this.showEditModal = false;
+            this.editForm = {
+                originalName: "",
+                name: "",
+                base_url: "",
+                career_site_type: "",
+                api_request_body: "",
+                to_scrape: true,
+            };
+            this.editCompanyMessage = "";
+        },
+
+        async updateCompany() {
+            this.isEditingCompany = true;
+            this.editCompanyMessage = "";
+
+            try {
+                const updateData = {
+                    name:
+                        this.editForm.name !== this.editForm.originalName
+                            ? this.editForm.name
+                            : undefined,
+                    base_url: this.editForm.base_url,
+                    to_scrape: this.editForm.to_scrape,
+                };
+
+                // Add api_request_body for Workday companies
+                if (
+                    this.editForm.career_site_type === "workday" &&
+                    this.editForm.api_request_body
+                ) {
+                    try {
+                        updateData.api_request_body = JSON.parse(this.editForm.api_request_body);
+                    } catch (e) {
+                        this.editCompanyMessage = "Invalid JSON in Request Body";
+                        this.editCompanyMessageType = "error";
+                        this.isEditingCompany = false;
+                        return;
+                    }
+                }
+
+                const response = await axios.put(
+                    `/api/companies/${encodeURIComponent(this.editForm.originalName)}`,
+                    updateData,
+                );
+
+                this.editCompanyMessage = response.data.message;
+                this.editCompanyMessageType = "success";
+
+                // Refresh companies list
+                await this.loadCompanies();
+
+                // Close modal after a short delay
+                setTimeout(() => {
+                    this.closeEditModal();
+                }, 1500);
+            } catch (error) {
+                console.error("Error updating company:", error);
+                this.editCompanyMessage =
+                    error.response?.data?.message || "Failed to update company";
+                this.editCompanyMessageType = "error";
             }
 
-            this.isTogglingStatus = false;
+            this.isEditingCompany = false;
+        },
+
+        confirmDeleteCompany(company) {
+            this.companyToDelete = company;
+            this.showDeleteModal = true;
+        },
+
+        async deleteCompany() {
+            if (!this.companyToDelete) return;
+
+            this.isDeletingCompany = true;
+
+            try {
+                const response = await axios.delete(
+                    `/api/companies/${encodeURIComponent(this.companyToDelete.name)}`,
+                );
+
+                this.showNotification("success", response.data.message);
+
+                // Refresh companies list
+                await this.loadCompanies();
+
+                // Close modal after successful delete and refresh
+                this.showDeleteModal = false;
+                this.companyToDelete = null;
+                this.isDeletingCompany = false;
+            } catch (error) {
+                console.error("Error deleting company:", error);
+                this.showNotification(
+                    "error",
+                    error.response?.data?.message || "Failed to delete company",
+                );
+                this.isDeletingCompany = false;
+            }
         },
 
         viewCompanyJobs(company) {
@@ -434,8 +740,47 @@ export default {
         },
 
         showNotification(type, message) {
-            // Use the parent app's notification system
-            this.$parent.showNotification(type, message);
+            this.notification = { type, message };
+            setTimeout(() => {
+                this.notification = null;
+            }, 5000);
+        },
+
+        truncateUrl(url) {
+            if (!url) return "";
+            const maxLength = 80;
+            if (url.length <= maxLength) return url;
+            return url.substring(0, maxLength) + "...";
+        },
+
+        copyToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard
+                    .writeText(text)
+                    .then(() => {
+                        this.showNotification("success", "URL copied to clipboard!");
+                    })
+                    .catch((err) => {
+                        console.error("Failed to copy:", err);
+                        this.showNotification("error", "Failed to copy URL");
+                    });
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand("copy");
+                    this.showNotification("success", "URL copied to clipboard!");
+                } catch (err) {
+                    console.error("Failed to copy:", err);
+                    this.showNotification("error", "Failed to copy URL");
+                }
+                document.body.removeChild(textArea);
+            }
         },
     },
 };
@@ -560,6 +905,38 @@ export default {
     transform: none;
 }
 
+.btn-secondary {
+    background: #718096;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: #4a5568;
+}
+
+.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 0.8s ease-in-out infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
 .companies-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -642,30 +1019,94 @@ export default {
 
 .company-details {
     margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
-.detail-item {
+.detail-row {
     display: flex;
-    margin-bottom: 0.5rem;
     align-items: center;
     gap: 0.5rem;
 }
 
-.detail-item strong {
-    color: #4a5568;
-    min-width: 60px;
+.detail-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #f7fafc;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.9rem;
+}
+
+.badge-icon {
+    font-size: 1rem;
+}
+
+.badge-text {
     font-weight: 600;
+    color: #4a5568;
+    text-transform: capitalize;
+}
+
+.url-row {
+    background: #f7fafc;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.url-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    overflow: hidden;
+}
+
+.url-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
 }
 
 .company-url {
     color: #667eea;
     text-decoration: none;
-    word-break: break-all;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: "Courier New", monospace;
 }
 
 .company-url:hover {
     text-decoration: underline;
+}
+
+.copy-btn {
+    background: white;
+    border: 1px solid #cbd5e0;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.copy-btn:hover {
+    background: #e2e8f0;
+    border-color: #a0aec0;
+    transform: scale(1.05);
+}
+
+.copy-btn:active {
+    transform: scale(0.95);
 }
 
 .company-actions {
@@ -700,6 +1141,17 @@ export default {
 
 .btn-danger:hover {
     background: #e53e3e;
+}
+
+.btn-danger-outline {
+    background: white;
+    color: #f56565;
+    border: 2px solid #f56565;
+}
+
+.btn-danger-outline:hover {
+    background: #f56565;
+    color: white;
 }
 
 .loading-container {
@@ -887,6 +1339,168 @@ export default {
     line-height: 1.6;
 }
 
+.delete-warning {
+    padding: 2rem 2rem 1rem 2rem;
+}
+
+.delete-warning p {
+    margin-bottom: 1rem;
+    line-height: 1.6;
+    font-size: 1rem;
+    color: #2d3748;
+}
+
+.delete-warning p:last-child {
+    margin-bottom: 0;
+}
+
+.warning-text {
+    color: #c53030;
+    font-weight: 500;
+    background: #fed7d7;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #feb2b2;
+    font-size: 0.95rem;
+}
+
+.modal-small {
+    max-width: 500px;
+}
+
+.modal-small .modal-actions {
+    padding: 0 2rem 2rem 2rem;
+    margin-top: 0;
+}
+
+/* Edit Modal Specific Styles */
+.edit-modal {
+    max-width: 650px;
+}
+
+.modal-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.modal-icon {
+    font-size: 1.75rem;
+}
+
+.compact-form {
+    padding: 1.5rem 2rem;
+}
+
+.form-row-compact {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.label-icon {
+    font-size: 1.1rem;
+    margin-right: 0.25rem;
+}
+
+.form-group label {
+    display: flex;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.info-help {
+    background: #ebf8ff;
+    color: #2c5282;
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+    border: 1px solid #bee3f8;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.url-textarea {
+    font-family: "Courier New", monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+    min-height: 50px;
+}
+
+.json-textarea {
+    font-family: "Courier New", monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+    background: #f7fafc;
+}
+
+.checkbox-group-compact {
+    background: #f7fafc;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-top: 0.5rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.checkbox-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.checkbox-text strong {
+    color: #2d3748;
+    font-size: 0.95rem;
+}
+
+/* Notification Styles */
+.notification {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+}
+
+.notification.success {
+    background: #48bb78;
+}
+
+.notification.error {
+    background: #f56565;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
 .warning-box code {
     background: #fef3c7;
     padding: 0.2rem 0.4rem;
@@ -901,7 +1515,8 @@ export default {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .form-row {
+    .form-row,
+    .form-row-compact {
         grid-template-columns: 1fr;
     }
 

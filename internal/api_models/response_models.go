@@ -26,8 +26,10 @@ type JobSearchResponse struct {
 }
 
 type CompanyResponse struct {
-	Name           string `json:"name"`
-	BaseUrl        string `json:"base_url"`
-	CareerSiteType string `json:"career_site_type"`
-	ToScrape       bool   `json:"to_scrape"`
+	Name                 string `json:"name"`
+	BaseUrl              string `json:"base_url"`
+	CareerSiteType       string `json:"career_site_type"`
+	ApiRequestBody       string `json:"api_request_body"`
+	ApiRequestQueryParam string `json:"api_request_query_param"`
+	ToScrape             bool   `json:"to_scrape"`
 }

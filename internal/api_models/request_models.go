@@ -29,3 +29,12 @@ type JobSearchRequest struct {
 	Limit   int    `query:"limit" json:"limit" validate:"omitempty,min=1,max=100" default:"10"`
 	Offset  int    `query:"offset" json:"offset" validate:"omitempty,min=0" default:"0"`
 }
+
+type UpdateCompanyRequest struct {
+	Name                 string          `json:"name"`
+	BaseUrl              string          `json:"base_url"`
+	CareerSiteType       string          `json:"career_site_type"`
+	ApiRequestBody       json.RawMessage `json:"api_request_body"`
+	ApiRequestQueryParam string          `json:"api_request_query_param"`
+	ToScrape             *bool           `json:"to_scrape"`
+}

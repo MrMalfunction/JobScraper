@@ -100,6 +100,8 @@ func attachPaths(e *echo.Echo) {
 	api.GET("/jobs/today", GetTodaysJobs)
 	api.GET("/jobs/all", GetAllJobs)
 	api.GET("/companies", GetCompanies)
+	api.PUT("/companies/:name", UpdateCompany)
+	api.DELETE("/companies/:name", DeleteCompany)
 	api.DELETE("/jobs/cleanup", DeleteOldJobs)
 
 	// Redirect root to /ui
