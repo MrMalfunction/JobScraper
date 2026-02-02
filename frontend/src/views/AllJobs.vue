@@ -73,6 +73,7 @@
                     </div>
 
                     <div class="job-actions">
+                        <a :href="job.job_link" target="_blank" class="apply-btn">Apply</a>
                         <button class="view-details-btn">View Details</button>
                     </div>
                 </div>
@@ -575,6 +576,23 @@ export default {
 .view-details-btn:hover {
     background: #667eea;
     color: white;
+}
+
+.apply-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.apply-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .pagination {
