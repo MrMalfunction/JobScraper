@@ -2,59 +2,45 @@
     <div class="all-jobs">
         <div class="page-header">
             <h1>All Jobs</h1>
-            <p>Browse the complete job database with advanced filtering</p>
+            <p>{{ jobsData.total }} jobs in database</p>
         </div>
 
-        <!-- Advanced Filters -->
-        <div class="card filters-card">
-            <h3>Search & Filter</h3>
-            <div class="filters">
-                <div class="form-group">
-                    <label for="filterCompany">Company:</label>
-                    <input
-                        id="filterCompany"
-                        v-model="filters.company"
-                        type="text"
-                        placeholder="Filter by company name"
-                    />
-                </div>
-
-                <div class="form-group">
-                    <label for="filterTitle">Job Title:</label>
-                    <input
-                        id="filterTitle"
-                        v-model="filters.title"
-                        type="text"
-                        placeholder="Filter by job title"
-                    />
-                </div>
-
-                <div class="form-group">
-                    <label for="resultsPerPage">Results per page:</label>
-                    <select id="resultsPerPage" v-model="filters.limit">
-                        <option value="20">20</option>
-                        <option value="40">40</option>
-                        <option value="80">80</option>
-                        <option value="100">100</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <button @click="applyFilters" class="btn" :disabled="isLoading">
-                        <span v-if="isLoading" class="spinner"></span>
-                        Search Jobs
-                    </button>
-                    <button @click="clearFilters" class="btn btn-secondary">Clear All</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Results Summary -->
-        <div v-if="!isLoading" class="results-summary">
-            <p>
-                {{ jobsData.total }} jobs found
-                <span v-if="hasActiveFilters"> matching your criteria</span>
-            </p>
+        <!-- Compact Filters -->
+        <div class="filters-compact">
+            <input
+                v-model="filters.company"
+                type="text"
+                placeholder="🏢 Company"
+                class="filter-input"
+            />
+            <input
+                v-model="filters.title"
+                type="text"
+                placeholder="💼 Job Title"
+                class="filter-input"
+            />
+            <input
+                v-model="includeKeywords"
+                type="text"
+                placeholder="✅ Include: go, python, remote"
+                class="filter-input"
+            />
+            <input
+                v-model="excludeKeywords"
+                type="text"
+                placeholder="❌ Exclude: senior, manager"
+                class="filter-input"
+            />
+            <select v-model="filters.limit" class="filter-select">
+                <option value="20">20</option>
+                <option value="40">40</option>
+                <option value="80">80</option>
+                <option value="100">100</option>
+            </select>
+            <button @click="applyFilters" class="btn-search" :disabled="isLoading">
+                {{ isLoading ? "..." : "Search" }}
+            </button>
+            <button @click="clearFilters" class="btn-clear" :disabled="isLoading">Clear</button>
         </div>
 
         <!-- Jobs List -->
@@ -170,6 +156,7 @@
 <script>
 import axios from "axios";
 import JobDetailsModal from "../components/JobDetailsModal.vue";
+import { useKeywordFilters } from "../composables/useKeywordFilters.js";
 
 export default {
     name: "AllJobs",
@@ -196,13 +183,20 @@ export default {
         };
     },
 
+    setup() {
+        const keywordFilters = useKeywordFilters();
+        return {
+            ...keywordFilters,
+        };
+    },
+
     computed: {
         totalPages() {
             return Math.ceil(this.jobsData.total / parseInt(this.filters.limit));
         },
 
         hasActiveFilters() {
-            return this.filters.company || this.filters.title;
+            return this.filters.company || this.filters.title || this.hasActiveKeywords;
         },
 
         visiblePages() {
@@ -261,6 +255,9 @@ export default {
                     params.title = this.filters.title;
                 }
 
+                // Add keyword filters
+                Object.assign(params, this.buildKeywordParams());
+
                 const response = await axios.get("/api/jobs/all", { params });
                 this.jobsData = response.data.data;
             } catch (error) {
@@ -279,6 +276,7 @@ export default {
         async clearFilters() {
             this.filters.company = "";
             this.filters.title = "";
+            this.clearKeywords();
             this.currentPage = 1;
             await this.loadAllJobs();
         },
@@ -359,38 +357,101 @@ export default {
 
 .page-header {
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
 .page-header h1 {
-    font-size: 2.5rem;
+    font-size: 2rem;
     font-weight: 700;
     color: #2d3748;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .page-header p {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     color: #718096;
 }
 
-.filters-card {
-    margin-bottom: 2rem;
+.filters-compact {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    flex-wrap: wrap;
 }
 
-.filters {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto auto auto;
-    gap: 1rem;
-    align-items: end;
+.filter-input,
+.filter-select {
+    flex: 1;
+    min-width: 180px;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
 }
 
-.results-summary {
-    text-align: center;
-    margin-bottom: 2rem;
-    font-size: 1.1rem;
-    color: #4a5568;
-    font-weight: 500;
+.filter-input:focus,
+.filter-select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.filter-input::placeholder {
+    color: #a0aec0;
+}
+
+.filter-select {
+    flex: 0 0 80px;
+}
+
+.btn-search {
+    padding: 0.625rem 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-search:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-search:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-clear {
+    padding: 0.625rem 1rem;
+    background: white;
+    color: #718096;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-clear:hover:not(:disabled) {
+    background: #f7fafc;
+    border-color: #cbd5e0;
+}
+
+.btn-clear:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .jobs-grid {
@@ -624,9 +685,18 @@ export default {
         padding: 2rem 0.75rem;
     }
 
-    .filters {
-        grid-template-columns: 1fr;
-        gap: 1rem;
+    .filters-compact {
+        flex-direction: column;
+    }
+
+    .filter-input,
+    .filter-select {
+        min-width: 100%;
+    }
+
+    .btn-search,
+    .btn-clear {
+        width: 100%;
     }
 
     .jobs-grid {
@@ -643,7 +713,7 @@ export default {
     }
 
     .page-header h1 {
-        font-size: 2rem;
+        font-size: 1.75rem;
     }
 }
 </style>

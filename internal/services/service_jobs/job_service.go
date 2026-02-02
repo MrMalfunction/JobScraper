@@ -9,13 +9,53 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 )
 
-// SearchJobs searches for jobs by company name and/or job title
+// applyKeywordFilters applies include and exclude keyword filters to the query
+func applyKeywordFilters(query *gorm.DB, includeKeywords, excludeKeywords []string) *gorm.DB {
+	// Handle include keywords: jobs must contain at least one include keyword in role or details
+	if len(includeKeywords) > 0 {
+		var includeConditions []string
+		var includeArgs []interface{}
+		for _, keyword := range includeKeywords {
+			keyword = strings.TrimSpace(strings.ToLower(keyword))
+			if keyword != "" {
+				includeConditions = append(includeConditions, "(LOWER(job_role) ILIKE ? OR LOWER(job_details) ILIKE ?)")
+				includeArgs = append(includeArgs, "%"+keyword+"%", "%"+keyword+"%")
+			}
+		}
+		if len(includeConditions) > 0 {
+			query = query.Where(strings.Join(includeConditions, " OR "), includeArgs...)
+		}
+	}
+
+	// Handle exclude keywords: jobs must NOT contain any exclude keyword in role or details
+	if len(excludeKeywords) > 0 {
+		var excludeConditions []string
+		var excludeArgs []interface{}
+		for _, keyword := range excludeKeywords {
+			keyword = strings.TrimSpace(strings.ToLower(keyword))
+			if keyword != "" {
+				excludeConditions = append(excludeConditions, "(LOWER(job_role) ILIKE ? OR LOWER(job_details) ILIKE ?)")
+				excludeArgs = append(excludeArgs, "%"+keyword+"%", "%"+keyword+"%")
+			}
+		}
+		if len(excludeConditions) > 0 {
+			query = query.Where("NOT ("+strings.Join(excludeConditions, " OR ")+")", excludeArgs...)
+		}
+	}
+
+	return query
+}
+
+// SearchJobs searches for jobs by company name, job title, and include/exclude keywords in role and details
 func SearchJobs(c echo.Context) error {
 	// Parse query parameters
 	company := strings.TrimSpace(c.QueryParam("company"))
 	title := strings.TrimSpace(c.QueryParam("title"))
+	includeKeywords := c.QueryParams()["include_keywords"]
+	excludeKeywords := c.QueryParams()["exclude_keywords"]
 
 	limitStr := c.QueryParam("limit")
 	if limitStr == "" {
@@ -45,6 +85,8 @@ func SearchJobs(c echo.Context) error {
 	if title != "" {
 		query = query.Where("LOWER(job_role) ILIKE ?", "%"+strings.ToLower(title)+"%")
 	}
+
+	query = applyKeywordFilters(query, includeKeywords, excludeKeywords)
 
 	// Get total count
 	var totalCount int64
@@ -103,6 +145,10 @@ func SearchJobs(c echo.Context) error {
 
 // GetLatestJobs gets the most recent jobs
 func GetLatestJobs(c echo.Context) error {
+	// Parse query parameters
+	includeKeywords := c.QueryParams()["include_keywords"]
+	excludeKeywords := c.QueryParams()["exclude_keywords"]
+
 	limitStr := c.QueryParam("limit")
 	if limitStr == "" {
 		limitStr = "20"
@@ -112,8 +158,13 @@ func GetLatestJobs(c echo.Context) error {
 		limit = 20
 	}
 
+	// Build query
+	query := db.DB.Model(&db.Jobs{})
+
+	query = applyKeywordFilters(query, includeKeywords, excludeKeywords)
+
 	var jobs []db.Jobs
-	if err := db.DB.Order("job_insert_time DESC").
+	if err := query.Order("job_insert_time DESC").
 		Limit(limit).
 		Find(&jobs).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, api_models.StdResponse{
@@ -149,6 +200,8 @@ func GetTodaysJobs(c echo.Context) error {
 	// Parse query parameters
 	company := strings.TrimSpace(c.QueryParam("company"))
 	title := strings.TrimSpace(c.QueryParam("title"))
+	includeKeywords := c.QueryParams()["include_keywords"]
+	excludeKeywords := c.QueryParams()["exclude_keywords"]
 
 	limitStr := c.QueryParam("limit")
 	if limitStr == "" {
@@ -183,6 +236,8 @@ func GetTodaysJobs(c echo.Context) error {
 	if title != "" {
 		query = query.Where("LOWER(job_role) ILIKE ?", "%"+strings.ToLower(title)+"%")
 	}
+
+	query = applyKeywordFilters(query, includeKeywords, excludeKeywords)
 
 	// Get total count
 	var totalCount int64
@@ -244,6 +299,8 @@ func GetAllJobs(c echo.Context) error {
 	// Parse query parameters
 	company := strings.TrimSpace(c.QueryParam("company"))
 	title := strings.TrimSpace(c.QueryParam("title"))
+	includeKeywords := c.QueryParams()["include_keywords"]
+	excludeKeywords := c.QueryParams()["exclude_keywords"]
 
 	limitStr := c.QueryParam("limit")
 	if limitStr == "" {
@@ -273,6 +330,8 @@ func GetAllJobs(c echo.Context) error {
 	if title != "" {
 		query = query.Where("LOWER(job_role) ILIKE ?", "%"+strings.ToLower(title)+"%")
 	}
+
+	query = applyKeywordFilters(query, includeKeywords, excludeKeywords)
 
 	// Get total count
 	var totalCount int64

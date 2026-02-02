@@ -54,13 +54,32 @@ func StartServer() {
 	}
 	db.ConnectDatabase(dsn)
 
+	// Install pg_trgm extension for trigram operations
+	if err := db.DB.Exec("CREATE EXTENSION IF NOT EXISTS pg_trgm").Error; err != nil {
+		logger.Error("Failed to install pg_trgm extension", "error", err)
+		panic("Extension installation failed")
+	}
+	logger.Info("pg_trgm extension installed")
+
 	// Auto-migrate models (add all models here as your app grows)
-	err := db.DB.AutoMigrate(&db.Companies{}, &db.Jobs{})
-	if err != nil {
+	if err := db.DB.AutoMigrate(&db.Companies{}, &db.Jobs{}); err != nil {
 		logger.Error("AutoMigrate failed", "error", err)
 		panic("Automigration Failed")
 	}
 	logger.Info("Auto Migration Successful")
+
+	// Create GIN indexes manually for trigram operations
+	if err := db.DB.Exec(`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_job_role_trgm ON jobs USING gin (job_role gin_trgm_ops)`).Error; err != nil {
+		logger.Error("Failed to create GIN index on job_role", "error", err)
+		panic("Index creation failed")
+	}
+	logger.Info("GIN index on job_role created")
+
+	if err := db.DB.Exec(`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_job_details_trgm ON jobs USING gin (job_details gin_trgm_ops)`).Error; err != nil {
+		logger.Error("Failed to create GIN index on job_details", "error", err)
+		panic("Index creation failed")
+	}
+	logger.Info("GIN index on job_details created")
 
 	e := echo.New()
 	// Middleware
