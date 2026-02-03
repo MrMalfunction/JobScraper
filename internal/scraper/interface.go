@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"job-scraper/internal/db"
+	"job-scraper/internal/scraper/generic"
 	"job-scraper/internal/scraper/greenhouse"
 	"job-scraper/internal/scraper/oraclecloud"
 	"job-scraper/internal/scraper/workday"
@@ -21,6 +22,8 @@ func JobScraperFactory(provider types.ScrapableWebsites) scraper {
 		return greenhouse.GreenhouseScraper{}
 	case types.OracleCloud:
 		return oraclecloud.OracleCloudScraper{}
+	case types.Generic:
+		return generic.GenericScraper{}
 	default:
 		return nil
 	}

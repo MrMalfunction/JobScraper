@@ -54,6 +54,14 @@
                     <p>Oracle Cloud Sites</p>
                 </div>
             </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">🔧</div>
+                <div class="stat-content">
+                    <h3>{{ genericCompanies }}</h3>
+                    <p>Generic API Sites</p>
+                </div>
+            </div>
         </div>
 
         <!-- Companies List -->
@@ -183,6 +191,7 @@
                             <option value="workday">Workday</option>
                             <option value="greenhouse">Greenhouse</option>
                             <option value="oraclecloud">Oracle Cloud</option>
+                            <option value="generic">Generic (Custom API)</option>
                         </select>
                         <small class="form-help">
                             Select the career site platform used by the company
@@ -269,6 +278,204 @@
                             Configure the JSON payload for the Workday API. Adjust parameters like
                             locations, jobFamilies, and search text as needed.
                         </small>
+                    </div>
+
+                    <!-- Generic scraper specific fields -->
+                    <div v-if="companyForm.type === 'generic'" class="generic-scraper-form">
+                        <div class="form-group">
+                            <label for="curlCommand">Paste Curl Command (Optional):</label>
+                            <textarea
+                                id="curlCommand"
+                                v-model="companyForm.curlCommand"
+                                rows="4"
+                                placeholder="curl 'https://api.example.com/jobs' -H 'Content-Type: application/json' -d '{...}'"
+                            ></textarea>
+                            <button type="button" @click="parseCurl" class="btn btn-secondary btn-small" style="margin-top: 0.5rem;">
+                                🔄 Parse Curl
+                            </button>
+                            <small class="form-help">
+                                Paste a curl command to auto-populate fields below, or fill them manually.
+                            </small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="genericMethod">HTTP Method:</label>
+                                <select id="genericMethod" v-model="companyForm.genericMethod" required>
+                                    <option value="GET">GET</option>
+                                    <option value="POST">POST</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="genericUrl">API URL:</label>
+                                <input
+                                    id="genericUrl"
+                                    v-model="companyForm.genericUrl"
+                                    type="url"
+                                    placeholder="https://api.example.com/jobs"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="genericHeaders">Headers (JSON):</label>
+                            <textarea
+                                id="genericHeaders"
+                                v-model="companyForm.genericHeaders"
+                                rows="4"
+                                placeholder='{"Content-Type": "application/json", "Authorization": "Bearer token"}'
+                            ></textarea>
+                            <small class="form-help">
+                                Custom headers as JSON object. Leave empty if not needed.
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="genericBody">Request Body (JSON):</label>
+                            <textarea
+                                id="genericBody"
+                                v-model="companyForm.genericBody"
+                                rows="4"
+                                placeholder='{"page": 1, "limit": 20}'
+                            ></textarea>
+                            <small class="form-help">
+                                Request body as JSON. For GET requests, this will be converted to query parameters.
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="genericQueryParams">Query Parameters (Optional):</label>
+                            <input
+                                id="genericQueryParams"
+                                v-model="companyForm.genericQueryParams"
+                                type="text"
+                                placeholder="limit=20&sort=date"
+                            />
+                            <small class="form-help">
+                                Additional query string parameters (without ?).
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="paginationKey">Pagination Key:</label>
+                            <input
+                                id="paginationKey"
+                                v-model="companyForm.paginationKey"
+                                type="text"
+                                placeholder="page or offset"
+                                required
+                            />
+                            <small class="form-help">
+                                The parameter name used for pagination (e.g., "page", "offset", "skip").
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>JSON Paths for Data Extraction:</label>
+                            <div class="json-paths-grid">
+                                <div class="json-path-item">
+                                    <label for="responseJsonPath">Jobs Array Path:</label>
+                                    <input
+                                        id="responseJsonPath"
+                                        v-model="companyForm.responseJsonPath"
+                                        type="text"
+                                        placeholder="data.jobs or jobs"
+                                        required
+                                    />
+                                    <small>Path to the array containing job listings</small>
+                                </div>
+                                <div class="json-path-item">
+                                    <label for="jobIdPath">Job ID Path:</label>
+                                    <input
+                                        id="jobIdPath"
+                                        v-model="companyForm.jobIdPath"
+                                        type="text"
+                                        placeholder="id or job_id"
+                                        required
+                                    />
+                                </div>
+                                <div class="json-path-item">
+                                    <label for="jobTitlePath">Job Title Path:</label>
+                                    <input
+                                        id="jobTitlePath"
+                                        v-model="companyForm.jobTitlePath"
+                                        type="text"
+                                        placeholder="title or name"
+                                        required
+                                    />
+                                </div>
+                                <div class="json-path-item">
+                                    <label for="jobLinkPath">Job Link Path:</label>
+                                    <input
+                                        id="jobLinkPath"
+                                        v-model="companyForm.jobLinkPath"
+                                        type="text"
+                                        placeholder="url or link"
+                                        required
+                                    />
+                                    <small>Path to job URL, or first field if using template</small>
+                                </div>
+                                <div class="json-path-item">
+                                    <label for="jobLinkTemplate">Job Link Template (Optional):</label>
+                                    <input
+                                        id="jobLinkTemplate"
+                                        v-model="companyForm.jobLinkTemplate"
+                                        type="text"
+                                        placeholder="{base_url}{job_path}"
+                                    />
+                                    <small>Combine fields: {field1}{field2}. Use JSON paths in {}</small>
+                                </div>
+                                <div class="json-path-item">
+                                    <label for="jobDetailsPath">Job Details Path (Optional):</label>
+                                    <input
+                                        id="jobDetailsPath"
+                                        v-model="companyForm.jobDetailsPath"
+                                        type="text"
+                                        placeholder="description or details[*]"
+                                    />
+                                    <small>Supports arrays: use [*] for all items or [0] for first</small>
+                                </div>
+                                <div class="json-path-item">
+                                    <label for="jobDatePath">Job Date Path (Optional):</label>
+                                    <input
+                                        id="jobDatePath"
+                                        v-model="companyForm.jobDatePath"
+                                        type="text"
+                                        placeholder="posted_at or created_date"
+                                    />
+                                </div>
+                            </div>
+                            <small class="form-help">
+                                <strong>JSON Path Features:</strong><br>
+                                • Dot notation for nested fields: "data.jobs", "attributes.title"<br>
+                                • Arrays: use [*] for all items, [0] for first: "details[*]", "items[0].text"<br>
+                                • Link template (optional): if provided, replaces direct path. Combine fields with {field1}{field2}
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="button" @click="testGenericConfig" class="btn btn-primary btn-full" :disabled="isTestingConfig">
+                                <span v-if="isTestingConfig" class="spinner"></span>
+                                {{ isTestingConfig ? "Testing..." : "🧪 Test Configuration (Dry Run)" }}
+                            </button>
+                            <small class="form-help">
+                                Test your configuration before saving. This will fetch data and validate JSON paths.
+                            </small>
+                        </div>
+
+                        <div v-if="dryRunResult" :class="['dry-run-result', dryRunResult.valid ? 'success' : 'error']">
+                            <h4>{{ dryRunResult.valid ? "✅ Test Successful" : "❌ Test Failed" }}</h4>
+                            <p>{{ dryRunResult.message }}</p>
+                            <div v-if="dryRunResult.valid && dryRunResult.sample_data">
+                                <p><strong>Found {{ dryRunResult.extracted_jobs }} jobs. Sample data:</strong></p>
+                                <pre>{{ JSON.stringify(dryRunResult.sample_data, null, 2) }}</pre>
+                            </div>
+                            <div v-if="!dryRunResult.valid && dryRunResult.error_details">
+                                <p><strong>Error Details:</strong></p>
+                                <pre>{{ dryRunResult.error_details }}</pre>
+                            </div>
+                        </div>
                     </div>
 
                     <div v-if="addCompanyMessage" :class="['message', addCompanyMessageType]">
@@ -439,6 +646,7 @@
 
 <script>
 import axios from "axios";
+import { parseCurlCommand } from "../composables/useCurlParser";
 
 export default {
     name: "Companies",
@@ -452,12 +660,28 @@ export default {
                 browserUrl: "",
                 reqBody:
                     '{"searchText":"","locations":[],"jobFamilies":[],"postedWithin":"","limit":20,"offset":0}',
+                // Generic scraper fields
+                curlCommand: "",
+                genericMethod: "GET",
+                genericUrl: "",
+                genericHeaders: "{}",
+                genericBody: "{}",
+                genericQueryParams: "",
+                paginationKey: "",
+                responseJsonPath: "",
+                jobIdPath: "",
+                jobTitlePath: "",
+                jobLinkPath: "",
+                jobLinkTemplate: "",
+                jobDetailsPath: "",
+                jobDatePath: "",
             },
             isLoadingCompanies: false,
             isAddingCompany: false,
             togglingCompanies: {},
             isDeletingCompany: false,
             isEditingCompany: false,
+            isTestingConfig: false,
             addCompanyMessage: "",
             addCompanyMessageType: "",
             editCompanyMessage: "",
@@ -467,6 +691,7 @@ export default {
             showDeleteModal: false,
             companyToDelete: null,
             notification: null,
+            dryRunResult: null,
             editForm: {
                 originalName: "",
                 name: "",
@@ -497,6 +722,10 @@ export default {
 
         oraclecloudCompanies() {
             return this.companies.filter((c) => c.career_site_type === "oraclecloud").length;
+        },
+
+        genericCompanies() {
+            return this.companies.filter((c) => c.career_site_type === "generic").length;
         },
     },
 
@@ -545,6 +774,28 @@ export default {
                         name: this.companyForm.name,
                         browser_url: this.companyForm.browserUrl,
                     });
+                } else if (this.companyForm.type === "generic") {
+                    // Parse headers and body
+                    const headers = JSON.parse(this.companyForm.genericHeaders || "{}");
+                    const body = this.companyForm.genericBody ? JSON.parse(this.companyForm.genericBody) : {};
+
+                    response = await axios.post("/add_scrape_company/generic", {
+                        name: this.companyForm.name,
+                        base_url: this.companyForm.genericUrl,
+                        method: this.companyForm.genericMethod,
+                        headers: headers,
+                        body: body,
+                        query_params: this.companyForm.genericQueryParams,
+                        pagination_key: this.companyForm.paginationKey,
+                        response_json_path: this.companyForm.responseJsonPath,
+                        job_id_json_path: this.companyForm.jobIdPath,
+                        job_title_json_path: this.companyForm.jobTitlePath,
+                        job_details_json_path: this.companyForm.jobDetailsPath,
+                        job_link_json_path: this.companyForm.jobLinkPath,
+                        job_link_template: this.companyForm.jobLinkTemplate,
+                        job_date_json_path: this.companyForm.jobDatePath,
+                        dry_run: false,
+                    });
                 }
 
                 this.addCompanyMessage = response.data.message;
@@ -566,6 +817,72 @@ export default {
             this.isAddingCompany = false;
         },
 
+        parseCurl() {
+            if (!this.companyForm.curlCommand) {
+                alert("Please paste a curl command first");
+                return;
+            }
+
+            const result = parseCurlCommand(this.companyForm.curlCommand);
+            
+            if (result.success) {
+                this.companyForm.genericUrl = result.url;
+                this.companyForm.genericMethod = result.method;
+                this.companyForm.genericHeaders = JSON.stringify(result.headers, null, 2);
+                if (result.body) {
+                    this.companyForm.genericBody = typeof result.body === 'string' 
+                        ? result.body 
+                        : JSON.stringify(result.body, null, 2);
+                }
+                this.companyForm.genericQueryParams = result.queryParams;
+                
+                this.addCompanyMessage = "Curl command parsed successfully! Please review and fill in the JSON paths below.";
+                this.addCompanyMessageType = "success";
+            } else {
+                this.addCompanyMessage = result.error;
+                this.addCompanyMessageType = "error";
+            }
+        },
+
+        async testGenericConfig() {
+            this.isTestingConfig = true;
+            this.dryRunResult = null;
+
+            try {
+                const headers = JSON.parse(this.companyForm.genericHeaders || "{}");
+                const body = this.companyForm.genericBody ? JSON.parse(this.companyForm.genericBody) : {};
+
+                const response = await axios.post("/add_scrape_company/generic", {
+                    name: this.companyForm.name || "Test Company",
+                    base_url: this.companyForm.genericUrl,
+                    method: this.companyForm.genericMethod,
+                    headers: headers,
+                    body: body,
+                    query_params: this.companyForm.genericQueryParams,
+                    pagination_key: this.companyForm.paginationKey,
+                    response_json_path: this.companyForm.responseJsonPath,
+                    job_id_json_path: this.companyForm.jobIdPath,
+                    job_title_json_path: this.companyForm.jobTitlePath,
+                    job_details_json_path: this.companyForm.jobDetailsPath,
+                    job_link_json_path: this.companyForm.jobLinkPath,
+                    job_link_template: this.companyForm.jobLinkTemplate,
+                    job_date_json_path: this.companyForm.jobDatePath,
+                    dry_run: true,
+                });
+
+                this.dryRunResult = response.data;
+            } catch (error) {
+                console.error("Error testing configuration:", error);
+                this.dryRunResult = {
+                    valid: false,
+                    message: error.response?.data?.message || "Failed to test configuration",
+                    error_details: error.message,
+                };
+            }
+
+            this.isTestingConfig = false;
+        },
+
         resetForm() {
             this.companyForm.type = "workday";
             this.companyForm.name = "";
@@ -573,6 +890,21 @@ export default {
             this.companyForm.browserUrl = "";
             this.companyForm.reqBody =
                 '{"searchText":"","locations":[],"jobFamilies":[],"postedWithin":"","limit":20,"offset":0}';
+            this.companyForm.curlCommand = "";
+            this.companyForm.genericMethod = "GET";
+            this.companyForm.genericUrl = "";
+            this.companyForm.genericHeaders = "{}";
+            this.companyForm.genericBody = "{}";
+            this.companyForm.genericQueryParams = "";
+            this.companyForm.paginationKey = "";
+            this.companyForm.responseJsonPath = "";
+            this.companyForm.jobIdPath = "";
+            this.companyForm.jobTitlePath = "";
+            this.companyForm.jobLinkPath = "";
+            this.companyForm.jobLinkTemplate = "";
+            this.companyForm.jobDetailsPath = "";
+            this.companyForm.jobDatePath = "";
+            this.dryRunResult = null;
             this.addCompanyMessage = "";
         },
 
@@ -1575,6 +1907,96 @@ export default {
 
     .company-form {
         padding: 1.5rem;
+    }
+}
+
+/* Generic Scraper Form Styles */
+.generic-scraper-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.json-paths-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.json-path-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.json-path-item label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #4a5568;
+}
+
+.json-path-item input {
+    padding: 0.5rem;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.json-path-item small {
+    font-size: 0.75rem;
+    color: #718096;
+}
+
+.btn-small {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.btn-full {
+    width: 100%;
+}
+
+.dry-run-result {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.dry-run-result.success {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+}
+
+.dry-run-result.error {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+}
+
+.dry-run-result h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+}
+
+.dry-run-result p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.dry-run-result pre {
+    background: #1a202c;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .json-paths-grid {
+        grid-template-columns: 1fr;
     }
 }
 </style>
