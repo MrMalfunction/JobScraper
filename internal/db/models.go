@@ -15,8 +15,9 @@ type Companies struct {
 	ResponseJsonPath     string `gorm:"type:string"`      // JSON path to extract job data (Generic)
 	JobIdJsonPath        string `gorm:"type:string"`      // JSON path to extract job ID (Generic)
 	JobTitleJsonPath     string `gorm:"type:string"`      // JSON path to extract job title (Generic)
-	JobDetailsJsonPath   string `gorm:"type:string"`      // JSON path to extract job details (Generic)
-	JobLinkJsonPath      string `gorm:"type:string"`      // JSON path to extract job link (Generic)
+	JobDetailsJsonPath   string `gorm:"type:string"`      // JSON path to extract job details - supports arrays with [*] or [0] (Generic)
+	JobLinkJsonPath      string `gorm:"type:string"`      // JSON path or template like "{baseUrl}{path}" (Generic)
+	JobLinkTemplate      string `gorm:"type:string"`      // Optional template for constructing links (Generic)
 	JobDateJsonPath      string `gorm:"type:string"`      // JSON path to extract job date (Generic)
 	ToScrape             bool   `gorm:"type:boolean"`
 }

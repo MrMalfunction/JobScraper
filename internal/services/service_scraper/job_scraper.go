@@ -309,6 +309,10 @@ func UpdateCompany(c echo.Context) error {
 		updateMap["job_date_json_path"] = updateReq.JobDateJsonPath
 	}
 
+	if updateReq.JobLinkTemplate != "" {
+		updateMap["job_link_template"] = updateReq.JobLinkTemplate
+	}
+
 	if updateReq.ToScrape != nil {
 		updateMap["to_scrape"] = *updateReq.ToScrape
 	}
@@ -442,6 +446,7 @@ func AddGenericCompanyToScrapeList(c echo.Context) error {
 		JobTitleJsonPath:   genericCompData.JobTitleJsonPath,
 		JobDetailsJsonPath: genericCompData.JobDetailsJsonPath,
 		JobLinkJsonPath:    genericCompData.JobLinkJsonPath,
+		JobLinkTemplate:    genericCompData.JobLinkTemplate,
 		JobDateJsonPath:    genericCompData.JobDateJsonPath,
 		ToScrape:           true,
 	}
@@ -570,11 +575,23 @@ func performDryRun(config *api_models.AddGenericCompanyScrapeList) api_models.Dr
 
 	for i := 0; i < maxSamples; i++ {
 		jobJSON := jobs[i].Raw
+		
+		// Extract job link using template if provided
+		var jobLink string
+		if config.JobLinkTemplate != "" {
+			jobLink = constructJobLinkFromTemplate(jobJSON, config.JobLinkTemplate)
+		} else {
+			jobLink = gjson.Get(jobJSON, config.JobLinkJsonPath).String()
+		}
+		
+		// Extract job details (may be array or nested structure)
+		jobDetails := extractJobDetailsForDryRun(jobJSON, config.JobDetailsJsonPath)
+		
 		sample := map[string]interface{}{
 			"job_id":      gjson.Get(jobJSON, config.JobIdJsonPath).String(),
 			"job_title":   gjson.Get(jobJSON, config.JobTitleJsonPath).String(),
-			"job_link":    gjson.Get(jobJSON, config.JobLinkJsonPath).String(),
-			"job_details": truncateString(gjson.Get(jobJSON, config.JobDetailsJsonPath).String(), 100),
+			"job_link":    jobLink,
+			"job_details": truncateString(jobDetails, 100),
 			"job_date":    gjson.Get(jobJSON, config.JobDateJsonPath).String(),
 		}
 		sampleData = append(sampleData, sample)
@@ -593,4 +610,78 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+// constructJobLinkFromTemplate builds job link from template
+// Template format: "{field1}{field2}" where field1, field2 are JSON paths
+func constructJobLinkFromTemplate(jsonData string, template string) string {
+	result := template
+	start := 0
+	
+	for {
+		openIdx := -1
+		closeIdx := -1
+		
+		for i := start; i < len(result); i++ {
+			if result[i] == '{' {
+				openIdx = i
+				break
+			}
+		}
+		
+		if openIdx == -1 {
+			break
+		}
+		
+		for i := openIdx + 1; i < len(result); i++ {
+			if result[i] == '}' {
+				closeIdx = i
+				break
+			}
+		}
+		
+		if closeIdx == -1 {
+			break
+		}
+		
+		placeholder := result[openIdx+1 : closeIdx]
+		value := gjson.Get(jsonData, placeholder).String()
+		result = result[:openIdx] + value + result[closeIdx+1:]
+		start = openIdx + len(value)
+	}
+	
+	return result
+}
+
+// extractJobDetailsForDryRun handles nested structures and arrays
+func extractJobDetailsForDryRun(jsonData string, path string) string {
+	if path == "" {
+		return ""
+	}
+	
+	result := gjson.Get(jsonData, path)
+	if !result.Exists() {
+		return ""
+	}
+	
+	// If result is an array, join elements
+	if result.IsArray() {
+		var parts []string
+		result.ForEach(func(key, value gjson.Result) bool {
+			parts = append(parts, value.String())
+			return true
+		})
+		
+		// Join with newlines
+		if len(parts) == 0 {
+			return ""
+		}
+		joined := parts[0]
+		for i := 1; i < len(parts); i++ {
+			joined += "\n" + parts[i]
+		}
+		return joined
+	}
+	
+	return result.String()
 }

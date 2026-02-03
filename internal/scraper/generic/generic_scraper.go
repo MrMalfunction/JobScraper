@@ -18,6 +18,7 @@ import (
 type GenericScraper struct{}
 
 // extractValueFromJSON extracts value from JSON using gjson path
+// Supports arrays and nested objects with gjson syntax
 func extractValueFromJSON(jsonData string, path string) string {
 	if path == "" {
 		return ""
@@ -27,6 +28,131 @@ func extractValueFromJSON(jsonData string, path string) string {
 		return ""
 	}
 	return result.String()
+}
+
+// extractJobDetails handles nested JSON structures and arrays
+// Supports gjson array operations like [*], [0], etc.
+func extractJobDetails(jsonData string, path string) string {
+	if path == "" {
+		return ""
+	}
+	
+	result := gjson.Get(jsonData, path)
+	if !result.Exists() {
+		return ""
+	}
+	
+	// If result is an array, join all string elements
+	if result.IsArray() {
+		var parts []string
+		result.ForEach(func(key, value gjson.Result) bool {
+			if value.Type == gjson.String {
+				parts = append(parts, value.String())
+			} else {
+				// If it's an object or nested structure, convert to string
+				parts = append(parts, value.Raw)
+			}
+			return true // keep iterating
+		})
+		return joinNonEmpty(parts, "\n\n")
+	}
+	
+	// If result is an object, return its raw JSON (will be cleaned later)
+	if result.IsObject() {
+		return result.Raw
+	}
+	
+	return result.String()
+}
+
+// constructJobLink builds the job link from template or direct path
+// Template format: "{field1}{field2}" where field1, field2 are JSON paths
+// Example: "{base_url}{job_path}" or just "url" for direct path
+func constructJobLink(jsonData string, linkPath string, linkTemplate string) string {
+	// If no template, use direct path extraction
+	if linkTemplate == "" {
+		return extractValueFromJSON(jsonData, linkPath)
+	}
+	
+	// Parse template and replace placeholders with values
+	result := linkTemplate
+	
+	// Find all {placeholder} patterns and replace with actual values
+	start := 0
+	for {
+		openIdx := -1
+		closeIdx := -1
+		
+		for i := start; i < len(result); i++ {
+			if result[i] == '{' {
+				openIdx = i
+				break
+			}
+		}
+		
+		if openIdx == -1 {
+			break
+		}
+		
+		for i := openIdx + 1; i < len(result); i++ {
+			if result[i] == '}' {
+				closeIdx = i
+				break
+			}
+		}
+		
+		if closeIdx == -1 {
+			break
+		}
+		
+		// Extract placeholder name
+		placeholder := result[openIdx+1 : closeIdx]
+		
+		// Get value from JSON using the placeholder as path
+		value := extractValueFromJSON(jsonData, placeholder)
+		
+		// Replace {placeholder} with value
+		result = result[:openIdx] + value + result[closeIdx+1:]
+		
+		start = openIdx + len(value)
+	}
+	
+	return result
+}
+
+// joinNonEmpty joins non-empty strings with separator
+func joinNonEmpty(parts []string, separator string) string {
+	var filtered []string
+	for _, part := range parts {
+		trimmed := ""
+		// Trim each part
+		for i := 0; i < len(part); i++ {
+			if part[i] != ' ' && part[i] != '\n' && part[i] != '\t' {
+				trimmed = part[i:]
+				break
+			}
+		}
+		for i := len(trimmed) - 1; i >= 0; i-- {
+			if trimmed[i] != ' ' && trimmed[i] != '\n' && trimmed[i] != '\t' {
+				trimmed = trimmed[:i+1]
+				break
+			}
+		}
+		
+		if trimmed != "" {
+			filtered = append(filtered, trimmed)
+		}
+	}
+	
+	if len(filtered) == 0 {
+		return ""
+	}
+	
+	result := filtered[0]
+	for i := 1; i < len(filtered); i++ {
+		result += separator + filtered[i]
+	}
+	return result
 }
 
 // listJobsAndStartDetailsScrape fetches jobs from a generic API endpoint
@@ -135,8 +261,13 @@ func listJobsAndStartDetailsScrape(company db.Companies, scrapeDateLimitTruncate
 			// Extract job fields using JSON paths
 			jobId := extractValueFromJSON(jobJSON, company.JobIdJsonPath)
 			jobTitle := extractValueFromJSON(jobJSON, company.JobTitleJsonPath)
-			jobLink := extractValueFromJSON(jobJSON, company.JobLinkJsonPath)
-			jobDetails := extractValueFromJSON(jobJSON, company.JobDetailsJsonPath)
+			
+			// Use enhanced extraction for job details (handles arrays and nested structures)
+			jobDetails := extractJobDetails(jobJSON, company.JobDetailsJsonPath)
+			
+			// Use template-based link construction if template is provided
+			jobLink := constructJobLink(jobJSON, company.JobLinkJsonPath, company.JobLinkTemplate)
+			
 			jobDateStr := extractValueFromJSON(jobJSON, company.JobDateJsonPath)
 
 			// Parse job date

@@ -36,6 +36,7 @@ type AddGenericCompanyScrapeList struct {
 	JobTitleJsonPath   string                 `json:"job_title_json_path" validate:"required"`
 	JobDetailsJsonPath string                 `json:"job_details_json_path"`
 	JobLinkJsonPath    string                 `json:"job_link_json_path" validate:"required"`
+	JobLinkTemplate    string                 `json:"job_link_template"` // Optional template like "{base_url}{job_path}"
 	JobDateJsonPath    string                 `json:"job_date_json_path"`
 	DryRun             bool                   `json:"dry_run"` // If true, validate config without saving
 }
@@ -71,6 +72,7 @@ type UpdateCompanyRequest struct {
 	JobTitleJsonPath     string          `json:"job_title_json_path"`
 	JobDetailsJsonPath   string          `json:"job_details_json_path"`
 	JobLinkJsonPath      string          `json:"job_link_json_path"`
+	JobLinkTemplate      string          `json:"job_link_template"`
 	JobDateJsonPath      string          `json:"job_date_json_path"`
 	ToScrape             *bool           `json:"to_scrape"`
 }

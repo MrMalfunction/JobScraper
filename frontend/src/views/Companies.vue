@@ -414,6 +414,17 @@
                                         placeholder="url or link"
                                         required
                                     />
+                                    <small>Path to job URL, or first field if using template</small>
+                                </div>
+                                <div class="json-path-item">
+                                    <label for="jobLinkTemplate">Job Link Template (Optional):</label>
+                                    <input
+                                        id="jobLinkTemplate"
+                                        v-model="companyForm.jobLinkTemplate"
+                                        type="text"
+                                        placeholder="{base_url}{job_path}"
+                                    />
+                                    <small>Combine fields: {field1}{field2}. Use JSON paths in {}</small>
                                 </div>
                                 <div class="json-path-item">
                                     <label for="jobDetailsPath">Job Details Path (Optional):</label>
@@ -421,8 +432,9 @@
                                         id="jobDetailsPath"
                                         v-model="companyForm.jobDetailsPath"
                                         type="text"
-                                        placeholder="description or details"
+                                        placeholder="description or details[*]"
                                     />
+                                    <small>Supports arrays: use [*] for all items or [0] for first</small>
                                 </div>
                                 <div class="json-path-item">
                                     <label for="jobDatePath">Job Date Path (Optional):</label>
@@ -435,7 +447,10 @@
                                 </div>
                             </div>
                             <small class="form-help">
-                                Use dot notation for nested fields (e.g., "data.jobs", "attributes.title").
+                                <strong>JSON Path Features:</strong><br>
+                                • Dot notation for nested fields: "data.jobs", "attributes.title"<br>
+                                • Arrays: use [*] for all items, [0] for first: "details[*]", "items[0].text"<br>
+                                • Link template: combine multiple fields with {field1}{field2}
                             </small>
                         </div>
 
@@ -657,6 +672,7 @@ export default {
                 jobIdPath: "",
                 jobTitlePath: "",
                 jobLinkPath: "",
+                jobLinkTemplate: "",
                 jobDetailsPath: "",
                 jobDatePath: "",
             },
@@ -776,6 +792,7 @@ export default {
                         job_title_json_path: this.companyForm.jobTitlePath,
                         job_details_json_path: this.companyForm.jobDetailsPath,
                         job_link_json_path: this.companyForm.jobLinkPath,
+                        job_link_template: this.companyForm.jobLinkTemplate,
                         job_date_json_path: this.companyForm.jobDatePath,
                         dry_run: false,
                     });
@@ -848,6 +865,7 @@ export default {
                     job_title_json_path: this.companyForm.jobTitlePath,
                     job_details_json_path: this.companyForm.jobDetailsPath,
                     job_link_json_path: this.companyForm.jobLinkPath,
+                    job_link_template: this.companyForm.jobLinkTemplate,
                     job_date_json_path: this.companyForm.jobDatePath,
                     dry_run: true,
                 });
@@ -883,6 +901,7 @@ export default {
             this.companyForm.jobIdPath = "";
             this.companyForm.jobTitlePath = "";
             this.companyForm.jobLinkPath = "";
+            this.companyForm.jobLinkTemplate = "";
             this.companyForm.jobDetailsPath = "";
             this.companyForm.jobDatePath = "";
             this.dryRunResult = null;
