@@ -450,7 +450,7 @@
                                 <strong>JSON Path Features:</strong><br>
                                 • Dot notation for nested fields: "data.jobs", "attributes.title"<br>
                                 • Arrays: use [*] for all items, [0] for first: "details[*]", "items[0].text"<br>
-                                • Link template: combine multiple fields with {field1}{field2}
+                                • Link template (optional): if provided, replaces direct path. Combine fields with {field1}{field2}
                             </small>
                         </div>
 

@@ -6,7 +6,9 @@ import (
 	"job-scraper/internal/db"
 	"job-scraper/internal/scraper/common"
 	"log/slog"
+	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -74,48 +76,14 @@ func constructJobLink(jsonData string, linkPath string, linkTemplate string) str
 		return extractValueFromJSON(jsonData, linkPath)
 	}
 	
-	// Parse template and replace placeholders with values
-	result := linkTemplate
-	
-	// Find all {placeholder} patterns and replace with actual values
-	start := 0
-	for {
-		openIdx := -1
-		closeIdx := -1
-		
-		for i := start; i < len(result); i++ {
-			if result[i] == '{' {
-				openIdx = i
-				break
-			}
-		}
-		
-		if openIdx == -1 {
-			break
-		}
-		
-		for i := openIdx + 1; i < len(result); i++ {
-			if result[i] == '}' {
-				closeIdx = i
-				break
-			}
-		}
-		
-		if closeIdx == -1 {
-			break
-		}
-		
-		// Extract placeholder name
-		placeholder := result[openIdx+1 : closeIdx]
-		
+	// Use regex to find and replace all {placeholder} patterns
+	re := regexp.MustCompile(`\{([^}]+)\}`)
+	result := re.ReplaceAllStringFunc(linkTemplate, func(match string) string {
+		// Extract placeholder name (remove { and })
+		placeholder := match[1 : len(match)-1]
 		// Get value from JSON using the placeholder as path
-		value := extractValueFromJSON(jsonData, placeholder)
-		
-		// Replace {placeholder} with value
-		result = result[:openIdx] + value + result[closeIdx+1:]
-		
-		start = openIdx + len(value)
-	}
+		return extractValueFromJSON(jsonData, placeholder)
+	})
 	
 	return result
 }
@@ -124,21 +92,7 @@ func constructJobLink(jsonData string, linkPath string, linkTemplate string) str
 func joinNonEmpty(parts []string, separator string) string {
 	var filtered []string
 	for _, part := range parts {
-		trimmed := ""
-		// Trim each part
-		for i := 0; i < len(part); i++ {
-			if part[i] != ' ' && part[i] != '\n' && part[i] != '\t' {
-				trimmed = part[i:]
-				break
-			}
-		}
-		for i := len(trimmed) - 1; i >= 0; i-- {
-			if trimmed[i] != ' ' && trimmed[i] != '\n' && trimmed[i] != '\t' {
-				trimmed = trimmed[:i+1]
-				break
-			}
-		}
-		
+		trimmed := strings.TrimSpace(part)
 		if trimmed != "" {
 			filtered = append(filtered, trimmed)
 		}
@@ -148,11 +102,7 @@ func joinNonEmpty(parts []string, separator string) string {
 		return ""
 	}
 	
-	result := filtered[0]
-	for i := 1; i < len(filtered); i++ {
-		result += separator + filtered[i]
-	}
-	return result
+	return strings.Join(filtered, separator)
 }
 
 // listJobsAndStartDetailsScrape fetches jobs from a generic API endpoint

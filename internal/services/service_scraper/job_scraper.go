@@ -11,6 +11,8 @@ import (
 	"job-scraper/internal/types"
 	"log/slog"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -615,42 +617,11 @@ func truncateString(s string, maxLen int) string {
 // constructJobLinkFromTemplate builds job link from template
 // Template format: "{field1}{field2}" where field1, field2 are JSON paths
 func constructJobLinkFromTemplate(jsonData string, template string) string {
-	result := template
-	start := 0
-	
-	for {
-		openIdx := -1
-		closeIdx := -1
-		
-		for i := start; i < len(result); i++ {
-			if result[i] == '{' {
-				openIdx = i
-				break
-			}
-		}
-		
-		if openIdx == -1 {
-			break
-		}
-		
-		for i := openIdx + 1; i < len(result); i++ {
-			if result[i] == '}' {
-				closeIdx = i
-				break
-			}
-		}
-		
-		if closeIdx == -1 {
-			break
-		}
-		
-		placeholder := result[openIdx+1 : closeIdx]
-		value := gjson.Get(jsonData, placeholder).String()
-		result = result[:openIdx] + value + result[closeIdx+1:]
-		start = openIdx + len(value)
-	}
-	
-	return result
+	re := regexp.MustCompile(`\{([^}]+)\}`)
+	return re.ReplaceAllStringFunc(template, func(match string) string {
+		placeholder := match[1 : len(match)-1]
+		return gjson.Get(jsonData, placeholder).String()
+	})
 }
 
 // extractJobDetailsForDryRun handles nested structures and arrays
@@ -671,16 +642,7 @@ func extractJobDetailsForDryRun(jsonData string, path string) string {
 			parts = append(parts, value.String())
 			return true
 		})
-		
-		// Join with newlines
-		if len(parts) == 0 {
-			return ""
-		}
-		joined := parts[0]
-		for i := 1; i < len(parts); i++ {
-			joined += "\n" + parts[i]
-		}
-		return joined
+		return strings.Join(parts, "\n")
 	}
 	
 	return result.String()
