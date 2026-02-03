@@ -6,9 +6,18 @@ import "time"
 type Companies struct {
 	Name                 string `gorm:"type:string;primaryKey"`
 	BaseUrl              string `gorm:"type:string;not null"`
-	CareerSiteType       string `gorm:"type:string;not null"` // Ex: Workday
+	CareerSiteType       string `gorm:"type:string;not null"` // Ex: Workday, Generic
 	ApiRequestBody       string `gorm:"type:string"`
 	ApiRequestQueryParam string `gorm:"type:string"`
+	ApiRequestHeaders    string `gorm:"type:text"`        // JSON string for custom headers (Generic)
+	ApiRequestMethod     string `gorm:"type:string"`      // GET or POST (Generic)
+	PaginationKey        string `gorm:"type:string"`      // Key used for pagination (Generic)
+	ResponseJsonPath     string `gorm:"type:string"`      // JSON path to extract job data (Generic)
+	JobIdJsonPath        string `gorm:"type:string"`      // JSON path to extract job ID (Generic)
+	JobTitleJsonPath     string `gorm:"type:string"`      // JSON path to extract job title (Generic)
+	JobDetailsJsonPath   string `gorm:"type:string"`      // JSON path to extract job details (Generic)
+	JobLinkJsonPath      string `gorm:"type:string"`      // JSON path to extract job link (Generic)
+	JobDateJsonPath      string `gorm:"type:string"`      // JSON path to extract job date (Generic)
 	ToScrape             bool   `gorm:"type:boolean"`
 }
 

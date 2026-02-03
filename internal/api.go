@@ -25,6 +25,10 @@ func SubmitOracleCloudCompanyToScrape(c echo.Context) error {
 	return service_scraper.AddOracleCloudCompanyToScrapeList(c)
 }
 
+func SubmitGenericCompanyToScrape(c echo.Context) error {
+	return service_scraper.AddGenericCompanyToScrapeList(c)
+}
+
 // Job search endpoints
 func SearchJobs(c echo.Context) error {
 	return service_jobs.SearchJobs(c)

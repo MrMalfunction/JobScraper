@@ -6,6 +6,7 @@ const (
 	Workday     ScrapableWebsites = "workday"
 	Greenhouse  ScrapableWebsites = "greenhouse"
 	OracleCloud ScrapableWebsites = "oraclecloud"
+	Generic     ScrapableWebsites = "generic"
 )
 
 func AllScrapableWebsites() []ScrapableWebsites {
@@ -13,5 +14,6 @@ func AllScrapableWebsites() []ScrapableWebsites {
 		Workday,
 		Greenhouse,
 		OracleCloud,
+		Generic,
 	}
 }

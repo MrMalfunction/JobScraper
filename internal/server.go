@@ -110,6 +110,7 @@ func attachPaths(e *echo.Echo) {
 	e.POST("/add_scrape_company/workday", SubmitWorkdayCompanyToScrape)
 	e.POST("/add_scrape_company/greenhouse", SubmitGreenhouseCompanyToScrape)
 	e.POST("/add_scrape_company/oraclecloud", SubmitOracleCloudCompanyToScrape)
+	e.POST("/add_scrape_company/generic", SubmitGenericCompanyToScrape)
 	e.GET("/start_scrape", SubmitScrapeRequest)
 
 	// API routes for frontend
