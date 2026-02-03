@@ -495,7 +495,12 @@ func performDryRun(config *api_models.AddGenericCompanyScrapeList) api_models.Dr
 		bodyToSend[k] = v
 	}
 	if config.PaginationKey != "" {
-		bodyToSend[config.PaginationKey] = 0
+		// Use page number 1 for page-based pagination, 0 for offset-based
+		if config.PaginationKey == "page" {
+			bodyToSend[config.PaginationKey] = 1
+		} else {
+			bodyToSend[config.PaginationKey] = 0
+		}
 	}
 
 	if config.Method == "POST" {

@@ -61,12 +61,10 @@ func listJobsAndStartDetailsScrape(company db.Companies, scrapeDateLimitTruncate
 		// Set pagination value based on pagination key
 		if company.PaginationKey != "" {
 			// Support both offset-based and page-based pagination
-			if company.PaginationKey == "offset" {
-				reqBody[company.PaginationKey] = offset
-			} else if company.PaginationKey == "page" {
+			if company.PaginationKey == "page" {
 				reqBody[company.PaginationKey] = pageNum
 			} else {
-				// For other pagination keys, try both patterns
+				// Default to offset-based pagination for other keys
 				reqBody[company.PaginationKey] = offset
 			}
 		}
@@ -220,9 +218,11 @@ func (gs GenericScraper) StartScraping(companiesToScrape <-chan db.Companies, sc
 
 	var wg sync.WaitGroup
 	for company := range companiesToScrape {
-		wg.Go(func() {
-			listJobsAndStartDetailsScrape(company, scrapeDateLimitTruncated, jobDetailScrapeChannel)
-		})
+		wg.Add(1)
+		go func(c db.Companies) {
+			defer wg.Done()
+			listJobsAndStartDetailsScrape(c, scrapeDateLimitTruncated, jobDetailScrapeChannel)
+		}(company)
 	}
 
 	wg.Wait()
